@@ -9,14 +9,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Polarization, SimulationRequest } from "@/lib/api/client";
-
-// 計算条件のスカラー部分のみ（層は LayerEditor が担当）。
-type SettingsValue = Omit<SimulationRequest, "layers">;
+import type { Polarization } from "@/lib/api/client";
+import type { Settings } from "@/lib/stack";
 
 type Props = {
-  value: SettingsValue;
-  onChange: (patch: Partial<SettingsValue>) => void;
+  value: Settings;
+  onChange: (patch: Partial<Settings>) => void;
 };
 
 function NumberField({
