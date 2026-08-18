@@ -17,39 +17,17 @@ import { Label } from "@/components/ui/label";
 import {
   simulate,
   type EditableLayer,
-  type LayerDTO,
-  type SimulationRequest,
   type SimulationResponse,
 } from "@/lib/api/client";
-
-// 計算条件のスカラー部分（層・媒質を除く）。
-type Settings = Omit<SimulationRequest, "layers">;
-
-// 入射媒質・基板（半無限）の光学定数。
-type Medium = { n: number; k: number };
-
-const DEFAULT_SETTINGS: Settings = {
-  wlMin: 380,
-  wlMax: 780,
-  wlPoints: 81,
-  thetaDeg: 0,
-  pol: "s",
-};
-
-// 既定の多層膜（films）。id は固定（SSR/ハイドレーションのズレ回避）。
-const DEFAULT_FILMS: EditableLayer[] = [
-  {
-    id: "default-film",
-    name: "film",
-    thicknessNm: 150,
-    n: 2.5,
-    k: 0,
-  },
-];
-
-// 入射媒質は空気に固定（光が入ってくる側。UI には出さない）。
-const INCIDENT_AIR: Medium = { n: 1.0, k: 0 };
-const DEFAULT_SUBSTRATE: Medium = { n: 1.5, k: 0 }; // ガラス
+import {
+  DEFAULT_FILMS,
+  DEFAULT_SETTINGS,
+  DEFAULT_SUBSTRATE,
+  structureLayers,
+  toSimulationRequest,
+  type Medium,
+  type Settings,
+} from "@/lib/stack";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const SpectrumChart = dynamic(() => import("@/components/SpectrumChart"), {
@@ -58,30 +36,6 @@ const SpectrumChart = dynamic(() => import("@/components/SpectrumChart"), {
 const StructureView = dynamic(() => import("@/components/StructureView"), {
   ssr: false,
 });
-
-// 多層膜 + 基板（断面図に表示する層。入射側の空気は含まない）。
-function structureLayers(
-  films: EditableLayer[],
-  substrate: Medium,
-): LayerDTO[] {
-  return [
-    ...films.map((l) => ({
-      name: l.name,
-      thicknessNm: l.thicknessNm,
-      n: l.n,
-      k: l.k,
-    })),
-    { name: "基板", thicknessNm: 0, n: substrate.n, k: substrate.k },
-  ];
-}
-
-// API 用の層リスト（入射側→基板）。先頭に入射側の空気を付与する。
-function buildLayers(films: EditableLayer[], substrate: Medium): LayerDTO[] {
-  return [
-    { name: "空気", thicknessNm: 0, n: INCIDENT_AIR.n, k: INCIDENT_AIR.k },
-    ...structureLayers(films, substrate),
-  ];
-}
 
 export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -98,11 +52,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const body: SimulationRequest = {
-        ...settings,
-        layers: buildLayers(films, substrate),
-      };
-      setResult(await simulate(body));
+      setResult(await simulate(toSimulationRequest(settings, films, substrate)));
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setResult(null);
