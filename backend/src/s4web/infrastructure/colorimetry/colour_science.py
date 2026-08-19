@@ -17,9 +17,7 @@ class ColourScienceColorimetry(ColorimetryPort):
     def __init__(self) -> None:
         self._illuminant = colour.SDS_ILLUMINANTS["D65"]
         self._cmfs = colour.MSDS_CMFS["CIE 1931 2 Degree Standard Observer"]
-        self._wp = colour.CCS_ILLUMINANTS[
-            "CIE 1931 2 Degree Standard Observer"
-        ]["D65"]
+        self._wp = colour.CCS_ILLUMINANTS["CIE 1931 2 Degree Standard Observer"]["D65"]
 
     def reflectance_to_srgb(
         self,
@@ -31,13 +29,9 @@ class ColourScienceColorimetry(ColorimetryPort):
         values = np.nan_to_num(values, nan=0.0)
         values = np.clip(values, 0.0, 1.0)
 
-        sd = colour.SpectralDistribution(
-            dict(zip(wavelengths_nm, values, strict=True))
-        )
+        sd = colour.SpectralDistribution(dict(zip(wavelengths_nm, values, strict=True)))
         xyz = colour.sd_to_XYZ(sd, cmfs=self._cmfs, illuminant=self._illuminant)
-        srgb = colour.XYZ_to_sRGB(
-            xyz / 100.0, illuminant=self._wp, apply_cctf_encoding=True
-        )
+        srgb = colour.XYZ_to_sRGB(xyz / 100.0, illuminant=self._wp, apply_cctf_encoding=True)
         srgb = np.clip(srgb, 0.0, 1.0)
 
         r, g, b = (int(round(float(c) * 255)) for c in srgb)
