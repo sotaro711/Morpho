@@ -14,11 +14,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import {
-  simulate,
-  type EditableLayer,
-  type SimulationResponse,
-} from "@/lib/api/client";
+import type { EditableLayer } from "@/lib/api/client";
+import { useSimulation } from "@/lib/hooks/use-simulation";
 import {
   DEFAULT_FILMS,
   DEFAULT_SETTINGS,
@@ -41,25 +38,13 @@ export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [substrate, setSubstrate] = useState<Medium>(DEFAULT_SUBSTRATE);
   const [films, setFilms] = useState<EditableLayer[]>(DEFAULT_FILMS);
-  const [result, setResult] = useState<SimulationResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const { result, error, loading, run } = useSimulation();
 
   const patchSettings = (p: Partial<Settings>) =>
     setSettings((s) => ({ ...s, ...p }));
 
-  const run = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setResult(await simulate(toSimulationRequest(settings, films, substrate)));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setResult(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const runSimulation = () =>
+    run(toSimulationRequest(settings, films, substrate));
 
   return (
     <main className="mx-auto max-w-6xl p-6 font-sans">
@@ -95,7 +80,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Button onClick={run} disabled={loading} className="w-full">
+          <Button onClick={runSimulation} disabled={loading} className="w-full">
             {loading ? "計算中…" : "計算する"}
           </Button>
           {error && <p className="text-sm text-red-600">エラー: {error}</p>}
