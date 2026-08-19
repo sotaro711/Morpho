@@ -62,9 +62,7 @@ class Spectrum:
     def __post_init__(self) -> None:
         n = len(self.wavelengths_nm)
         if len(self.reflectance) != n or len(self.transmittance) != n:
-            raise ValueError(
-                "wavelengths, reflectance, transmittance must have equal length"
-            )
+            raise ValueError("wavelengths, reflectance, transmittance must have equal length")
 
 
 @dataclass(frozen=True)

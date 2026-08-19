@@ -62,9 +62,10 @@ class S4Solver(SolverPort):
             transmittance=tuple(transmittance),
         )
 
-    def _build(self, condition: SimulationCondition):  
-        # noqa: ANN202 (S4 の型は未公開)
-        # RCWA の計算空間を作る。NumBasis = RCWA が保持するフーリエ次数（逆格子ベクトル G） の数。面内に周期構造が無い平面多層膜では回折次数は 0 次のみなので 1 で厳密。
+    def _build(self, condition: SimulationCondition):
+        # 戻り値は S4 のシミュレーションオブジェクト（S4 の型は未公開なので注釈しない）。
+        # RCWA の計算空間を作る。NumBasis = RCWA が保持するフーリエ次数（逆格子ベクトル G）
+        # の数。面内に周期構造が無い平面多層膜では回折次数は 0 次のみなので 1 で厳密。
         # Lattice は次数の取り方を決めるが、0 次のみでは結果に効かないため公称値。
         sim = S4.New(
             Lattice=((_NOMINAL_PERIOD_UM, 0.0), (0.0, 0.0)),  # 1D 格子（第2ベクトルは0）
