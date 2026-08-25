@@ -1,5 +1,6 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { NumberInput } from "@/components/NumberInput";
@@ -59,7 +60,7 @@ export function LayerEditor({ layers, onChange }: Props) {
     <div className="grid gap-3">
       <div className="grid max-h-[55vh] gap-3 overflow-y-auto pr-1">
         {layers.length === 0 && (
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-muted-foreground">
             多層膜なし（入射媒質と基板の界面のみ）。下から層を追加できます。
           </p>
         )}
@@ -67,13 +68,16 @@ export function LayerEditor({ layers, onChange }: Props) {
           <div key={layer.id} className="rounded-lg border p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-semibold">{roleOf(i)}</span>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={`${roleOf(i)}を削除`}
               onClick={() => removeLayer(i)}
-              className="text-xs text-red-600"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
             >
-              削除
-            </button>
+              <Trash2 className="h-4 w-4" />
+            </Button>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -121,7 +125,7 @@ export function LayerEditor({ layers, onChange }: Props) {
         </div>
         <div className="mt-3 flex items-end gap-2">
           <div className="grid gap-1">
-            <Label className="text-xs text-neutral-500">ペア数</Label>
+            <Label className="text-xs text-muted-foreground">ペア数</Label>
             <NumberInput
               min={1}
               value={pairCount}
@@ -149,7 +153,7 @@ function PairRow({
 }) {
   return (
     <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] items-end gap-2">
-      <span className="pb-2 text-xs text-neutral-500">{label}</span>
+      <span className="pb-2 text-xs text-muted-foreground">{label}</span>
       <Field label="名前">
         <Input
           value={value.name}
@@ -189,7 +193,7 @@ function Field({
 }) {
   return (
     <div className="grid gap-1">
-      <Label className="text-xs text-neutral-500">{label}</Label>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
       {children}
     </div>
   );

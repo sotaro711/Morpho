@@ -32,7 +32,7 @@ function NumberField({
 }) {
   return (
     <div className="grid gap-1.5">
-      <Label className="text-xs text-neutral-500">{label}</Label>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
       <NumberInput value={value} step={step} min={min} onChange={onChange} />
     </div>
   );
@@ -64,7 +64,7 @@ export function SettingsForm({ value, onChange }: Props) {
         onChange={(v) => onChange({ thetaDeg: v })}
       />
       <div className="grid gap-1.5">
-        <Label className="text-xs text-neutral-500">偏光</Label>
+        <Label className="text-xs text-muted-foreground">偏光</Label>
         <Select
           value={value.pol}
           onValueChange={(v) => onChange({ pol: v as Polarization })}
