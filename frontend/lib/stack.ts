@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS: Settings = {
   wlPoints: 81,
   thetaDeg: 0,
   pol: "s",
+  numBasis: 1, // 平面多層膜は 0 次のみで厳密（周期構造対応時に増やす）
 };
 
 /** 既定の多層膜（films）。id は固定（SSR/ハイドレーションのズレ回避）。 */
@@ -36,6 +37,7 @@ export const DEFAULT_FILMS: EditableLayer[] = [
     thicknessNm: 150,
     n: 2.5,
     k: 0,
+    regions: [],
   },
 ];
 
@@ -56,15 +58,16 @@ export function structureLayers(
       thicknessNm: l.thicknessNm,
       n: l.n,
       k: l.k,
+      regions: l.regions,
     })),
-    { name: "基板", thicknessNm: 0, n: substrate.n, k: substrate.k },
+    { name: "基板", thicknessNm: 0, n: substrate.n, k: substrate.k, regions: [] },
   ];
 }
 
 // API 用の層リスト（入射側→基板）。先頭に入射側の空気を付与する。
 function buildLayers(films: EditableLayer[], substrate: Medium): LayerDTO[] {
   return [
-    { name: "空気", thicknessNm: 0, n: INCIDENT_AIR.n, k: INCIDENT_AIR.k },
+    { name: "空気", thicknessNm: 0, n: INCIDENT_AIR.n, k: INCIDENT_AIR.k, regions: [] },
     ...structureLayers(films, substrate),
   ];
 }

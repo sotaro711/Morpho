@@ -34,6 +34,7 @@ export function LayerEditor({ layers, onChange }: Props) {
       thicknessNm: 100,
       n: 1.5,
       k: 0,
+      regions: [],
     };
     onChange([inserted, ...layers]);
   };
@@ -46,8 +47,8 @@ export function LayerEditor({ layers, onChange }: Props) {
     const block: EditableLayer[] = [];
     for (let p = 0; p < n; p++) {
       // [A, B] の順（A が入射側寄り）。スタックの一番上にまとめて積む。
-      block.push({ id: crypto.randomUUID(), ...pairA });
-      block.push({ id: crypto.randomUUID(), ...pairB });
+      block.push({ id: crypto.randomUUID(), ...pairA, regions: [] });
+      block.push({ id: crypto.randomUUID(), ...pairB, regions: [] });
     }
     onChange([...block, ...layers]);
   };

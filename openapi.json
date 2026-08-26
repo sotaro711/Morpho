@@ -43,6 +43,45 @@
         }
       }
     },
+    "/api/simulate/orders": {
+      "post": {
+        "summary": "Simulate Orders",
+        "description": "反射の回折次数ごとの角度分布を返す。平面多層膜では 0 次（正反射）のみ。",
+        "operationId": "simulate_orders_api_simulate_orders_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrdersResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -68,6 +107,28 @@
   },
   "components": {
     "schemas": {
+      "AngularDistributionDTO": {
+        "properties": {
+          "wavelengthNm": {
+            "type": "number",
+            "title": "Wavelengthnm"
+          },
+          "orders": {
+            "items": {
+              "$ref": "#/components/schemas/DiffractionOrderDTO"
+            },
+            "type": "array",
+            "title": "Orders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wavelengthNm",
+          "orders"
+        ],
+        "title": "AngularDistributionDTO",
+        "description": "1 波長の角度分布。orders は出射角の昇順（伝搬する次数のみ）。"
+      },
       "ColorDTO": {
         "properties": {
           "r": {
@@ -95,6 +156,30 @@
           "hex"
         ],
         "title": "ColorDTO"
+      },
+      "DiffractionOrderDTO": {
+        "properties": {
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "angleDeg": {
+            "type": "number",
+            "title": "Angledeg"
+          },
+          "reflectance": {
+            "type": "number",
+            "title": "Reflectance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "order",
+          "angleDeg",
+          "reflectance"
+        ],
+        "title": "DiffractionOrderDTO",
+        "description": "1 つの回折次数への反射パワーの配分。"
       },
       "HTTPValidationError": {
         "properties": {
@@ -127,6 +212,14 @@
             "type": "number",
             "title": "K",
             "default": 0.0
+          },
+          "regions": {
+            "items": {
+              "$ref": "#/components/schemas/RegionDTO"
+            },
+            "type": "array",
+            "title": "Regions",
+            "default": []
           }
         },
         "type": "object",
@@ -137,6 +230,22 @@
         ],
         "title": "LayerDTO"
       },
+      "OrdersResponse": {
+        "properties": {
+          "distributions": {
+            "items": {
+              "$ref": "#/components/schemas/AngularDistributionDTO"
+            },
+            "type": "array",
+            "title": "Distributions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distributions"
+        ],
+        "title": "OrdersResponse"
+      },
       "Polarization": {
         "type": "string",
         "enum": [
@@ -145,6 +254,35 @@
         ],
         "title": "Polarization",
         "description": "偏光。S=TE、P=TM。"
+      },
+      "RegionDTO": {
+        "properties": {
+          "xNm": {
+            "type": "number",
+            "title": "Xnm"
+          },
+          "widthNm": {
+            "type": "number",
+            "title": "Widthnm"
+          },
+          "n": {
+            "type": "number",
+            "title": "N"
+          },
+          "k": {
+            "type": "number",
+            "title": "K",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "xNm",
+          "widthNm",
+          "n"
+        ],
+        "title": "RegionDTO",
+        "description": "層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。"
       },
       "SimulationRequest": {
         "properties": {
@@ -179,6 +317,23 @@
             "type": "array",
             "minItems": 2,
             "title": "Layers"
+          },
+          "periodNm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periodnm"
+          },
+          "numBasis": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Numbasis",
+            "default": 1
           }
         },
         "type": "object",
