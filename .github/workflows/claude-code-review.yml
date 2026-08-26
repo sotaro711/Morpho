@@ -2,7 +2,9 @@ name: Claude Code Review
 
 on:
   pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+    # PR 作成時のみ自動レビューする。push ごとの再レビュー(synchronize)は行わず、
+    # 指摘対応後の再レビューは PR 上の @claude メンションで明示的に依頼する。
+    types: [opened, ready_for_review]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
