@@ -2,3 +2,8 @@
 .DS_Store
 .idea/
 .vscode/
+
+# Claude Code のセッション一時物(引き継ぎメモ・個人ローカル設定)。
+# .claude/settings.json や skills はプロジェクト共有物なので ignore しない。
+.claude/handovers/
+.claude/settings.local.json
