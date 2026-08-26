@@ -21,6 +21,7 @@ import math
 
 import S4  # type: ignore[import-not-found]
 
+from s4web.domain.entities.diffraction import AngularDistribution, DiffractionOrder
 from s4web.domain.entities.layer import Layer
 from s4web.domain.entities.material import Material
 from s4web.domain.entities.simulation import (
@@ -73,6 +74,29 @@ class S4Solver(SolverPort):
             reflectance=tuple(reflectance),
             transmittance=tuple(transmittance),
         )
+
+    def solve_orders(self, condition: SimulationCondition) -> tuple[AngularDistribution, ...]:
+        sim = self._build(condition)
+
+        top_name = _layer_name(0, condition.layers[0])
+        if condition.period_nm is not None:
+            period_um = condition.period_nm / _NM_PER_UM
+        else:
+            period_um = _NOMINAL_PERIOD_UM
+        sin_in = math.sin(math.radians(condition.theta_deg))
+
+        distributions: list[AngularDistribution] = []
+        for wl_nm in condition.wavelengths_nm():
+            orders = _orders_at(sim, top_name, wl_nm, sin_in, period_um)
+            if orders is None and condition.is_patterned:
+                # スペクトル計算と同じ Rayleigh 点対策（波長微小シフトで解き直す）。
+                for shift in _WL_SHIFTS_NM:
+                    orders = _orders_at(sim, top_name, wl_nm + shift, sin_in, period_um)
+                    if orders is not None:
+                        break
+            # 回復不能な波長は空の分布（呼び出し側は「データなし」として扱える）。
+            distributions.append(AngularDistribution(wl_nm, orders or ()))
+        return tuple(distributions)
 
     def _build(self, condition: SimulationCondition):
         # 戻り値は S4 のシミュレーションオブジェクト（S4 の型は未公開なので注釈しない）。
@@ -155,6 +179,38 @@ def _solve_at(sim, top_name: str, bottom_name: str, wl_nm: float) -> tuple[float
         return 0.0, 0.0
     # 入射層の後退波 = 反射、基板層の前進波 = 透過。入射パワーで規格化。
     return -back_top.real / incident, forw_bot.real / incident
+
+
+def _orders_at(
+    sim, top_name: str, wl_nm: float, sin_in: float, period_um: float
+) -> tuple[DiffractionOrder, ...] | None:
+    """1 波長の回折次数ごとの反射パワーと出射角。数値異常なら None を返す。
+
+    GetPowerFluxByOrder は入射側層のフラックスを基底（次数）ごとに返す。
+    各次数の後退波が R_m。出射角は格子方程式 sinθ_m = sinθ_in + mλ/L から求め、
+    |sinθ_m| > 1 の次数は伝搬しない（遠方に届かない）ので除外する。
+    """
+    wl_um = wl_nm / _NM_PER_UM
+    sim.SetFrequency(1.0 / wl_um)
+    fluxes = sim.GetPowerFluxByOrder(S4_Layer=top_name)
+    basis = sim.GetBasisSet()  # ((m, 0), ...) 1D 格子なので第2成分は 0
+    incident = sum(f.real for f, _ in fluxes)
+    if incident == 0.0 or math.isnan(incident):
+        return None
+
+    orders: list[DiffractionOrder] = []
+    total_r = 0.0
+    for g, flux in zip(basis, fluxes, strict=True):
+        m = g[0]
+        r_m = -flux[1].real / incident
+        total_r += r_m
+        sin_m = sin_in + m * wl_um / period_um
+        if abs(sin_m) <= 1.0:
+            orders.append(DiffractionOrder(m, math.degrees(math.asin(sin_m)), r_m))
+    if math.isnan(total_r) or total_r < -0.01 or total_r > 1.05:
+        return None
+    orders.sort(key=lambda o: o.angle_deg)
+    return tuple(orders)
 
 
 def _is_anomalous(r: float, t: float) -> bool:
