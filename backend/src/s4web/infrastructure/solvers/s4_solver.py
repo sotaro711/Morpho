@@ -162,7 +162,8 @@ def _is_anomalous(r: float, t: float) -> bool:
     for v in (r, t):
         if math.isnan(v) or v < -0.01 or v > 1.05:
             return True
-    return False
+    # エネルギー保存: 反射 + 透過が入射を超えることはない（吸収があれば 1 未満）。
+    return r + t > 1.05
 
 
 def _epsilon(material: Material, lossy: bool) -> complex:
