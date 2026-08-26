@@ -16,10 +16,14 @@ class Polarization(StrEnum):
 
 @dataclass(frozen=True)
 class SimulationCondition:
-    """平面多層膜シミュレーションの完全な指定。
+    """多層膜シミュレーションの完全な指定。
 
     波長はすべて nm。層は入射側から基板側の順。
     ここを通過したインスタンスは「物理的に計算可能」であることが保証される。
+
+    面内パターン（Layer.regions）を持つ層がある場合は面内周期 period_nm が
+    必須になる。平面多層膜（パターンなし）では period_nm は不要で、
+    num_basis=1 が厳密（回折は 0 次のみ）。
     """
 
     wl_min_nm: float
@@ -28,6 +32,8 @@ class SimulationCondition:
     theta_deg: float
     polarization: Polarization
     layers: tuple[Layer, ...]
+    period_nm: float | None = None
+    num_basis: int = 1
 
     def __post_init__(self) -> None:
         if self.wl_min_nm <= 0 or self.wl_max_nm <= 0:
@@ -42,6 +48,27 @@ class SimulationCondition:
             raise ValueError("theta_deg must be in [0, 90)")
         if len(self.layers) < 2:
             raise ValueError("at least two layers are required (incident + substrate)")
+        if self.num_basis < 1:
+            raise ValueError(f"num_basis must be >= 1, got {self.num_basis}")
+        if self.period_nm is not None and self.period_nm <= 0:
+            raise ValueError(f"period_nm must be positive, got {self.period_nm}")
+        patterned = [layer for layer in self.layers if layer.is_patterned]
+        if patterned:
+            if self.period_nm is None:
+                names = ", ".join(layer.name for layer in patterned)
+                raise ValueError(f"period_nm is required for patterned layers ({names})")
+            for layer in patterned:
+                for region in layer.regions:
+                    if region.end_nm > self.period_nm:
+                        raise ValueError(
+                            f"region [{region.x_nm}, {region.end_nm}) in layer "
+                            f"'{layer.name}' exceeds period_nm={self.period_nm}"
+                        )
+
+    @property
+    def is_patterned(self) -> bool:
+        """面内パターンを持つ層を含むかどうか。"""
+        return any(layer.is_patterned for layer in self.layers)
 
     def wavelengths_nm(self) -> list[float]:
         """[wl_min, wl_max] を wl_points 点で等間隔サンプルした波長リスト。"""

@@ -24,9 +24,3 @@ class Material:
     def refractive_index(self) -> complex:
         """複素屈折率 ñ = n + ik。"""
         return complex(self.n, self.k)
-
-    @property
-    def epsilon(self) -> complex:
-        """比誘電率 ε = ñ²（S4 が必要とする形）。"""
-        nc = self.refractive_index
-        return nc * nc
