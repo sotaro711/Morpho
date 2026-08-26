@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/simulate/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simulate Orders
+         * @description 反射の回折次数ごとの角度分布を返す。平面多層膜では 0 次（正反射）のみ。
+         */
+        post: operations["simulate_orders_api_simulate_orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -42,6 +62,16 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AngularDistributionDTO
+         * @description 1 波長の角度分布。orders は出射角の昇順（伝搬する次数のみ）。
+         */
+        AngularDistributionDTO: {
+            /** Wavelengthnm */
+            wavelengthNm: number;
+            /** Orders */
+            orders: components["schemas"]["DiffractionOrderDTO"][];
+        };
         /** ColorDTO */
         ColorDTO: {
             /** R */
@@ -52,6 +82,18 @@ export interface components {
             b: number;
             /** Hex */
             hex: string;
+        };
+        /**
+         * DiffractionOrderDTO
+         * @description 1 つの回折次数への反射パワーの配分。
+         */
+        DiffractionOrderDTO: {
+            /** Order */
+            order: number;
+            /** Angledeg */
+            angleDeg: number;
+            /** Reflectance */
+            reflectance: number;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -71,6 +113,16 @@ export interface components {
              * @default 0
              */
             k: number;
+            /**
+             * Regions
+             * @default []
+             */
+            regions: components["schemas"]["RegionDTO"][];
+        };
+        /** OrdersResponse */
+        OrdersResponse: {
+            /** Distributions */
+            distributions: components["schemas"]["AngularDistributionDTO"][];
         };
         /**
          * Polarization
@@ -78,6 +130,23 @@ export interface components {
          * @enum {string}
          */
         Polarization: "s" | "p";
+        /**
+         * RegionDTO
+         * @description 層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。
+         */
+        RegionDTO: {
+            /** Xnm */
+            xNm: number;
+            /** Widthnm */
+            widthNm: number;
+            /** N */
+            n: number;
+            /**
+             * K
+             * @default 0
+             */
+            k: number;
+        };
         /** SimulationRequest */
         SimulationRequest: {
             /** Wlmin */
@@ -95,6 +164,13 @@ export interface components {
             pol: components["schemas"]["Polarization"];
             /** Layers */
             layers: components["schemas"]["LayerDTO"][];
+            /** Periodnm */
+            periodNm?: number | null;
+            /**
+             * Numbasis
+             * @default 1
+             */
+            numBasis: number;
         };
         /** SimulationResponse */
         SimulationResponse: {
@@ -148,6 +224,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimulationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simulate_orders_api_simulate_orders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrdersResponse"];
                 };
             };
             /** @description Validation Error */
