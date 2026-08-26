@@ -49,7 +49,7 @@ jobs:
 
             レビューの総評は日本語で PR にコメントとして必ず投稿してください。
             指摘事項が無い場合も「指摘なし」と一言、根拠(確認した観点)を添えて投稿してください。
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*)"'
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
 
