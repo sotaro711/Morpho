@@ -82,6 +82,45 @@
         }
       }
     },
+    "/api/simulate/sweep": {
+      "post": {
+        "summary": "Simulate Sweep",
+        "description": "入射角スイープ。角度ごとの R/T スペクトルと(任意で)反射色を返す。",
+        "operationId": "simulate_sweep_api_simulate_sweep_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SweepRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SweepResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -380,6 +419,147 @@
           "reflectedColor"
         ],
         "title": "SimulationResponse"
+      },
+      "SweepEntryDTO": {
+        "properties": {
+          "thetaDeg": {
+            "type": "number",
+            "title": "Thetadeg"
+          },
+          "R": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "R"
+          },
+          "T": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "T"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ColorDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "thetaDeg",
+          "R",
+          "T"
+        ],
+        "title": "SweepEntryDTO",
+        "description": "1 入射角分の結果。キーは SimulationResponse に合わせて R / T。"
+      },
+      "SweepRequest": {
+        "properties": {
+          "wlMin": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Wlmin"
+          },
+          "wlMax": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Wlmax"
+          },
+          "wlPoints": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Wlpoints"
+          },
+          "thetaDeg": {
+            "type": "number",
+            "title": "Thetadeg",
+            "default": 0.0
+          },
+          "pol": {
+            "$ref": "#/components/schemas/Polarization",
+            "default": "s"
+          },
+          "layers": {
+            "items": {
+              "$ref": "#/components/schemas/LayerDTO"
+            },
+            "type": "array",
+            "minItems": 2,
+            "title": "Layers"
+          },
+          "periodNm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periodnm"
+          },
+          "numBasis": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Numbasis",
+            "default": 1
+          },
+          "thetaDegs": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "maxItems": 181,
+            "minItems": 1,
+            "title": "Thetadegs"
+          },
+          "includeColors": {
+            "type": "boolean",
+            "title": "Includecolors",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "wlMin",
+          "wlMax",
+          "wlPoints",
+          "layers",
+          "thetaDegs"
+        ],
+        "title": "SweepRequest",
+        "description": "入射角スイープのリクエスト。theta_deg の代わりに theta_degs を掃引する。"
+      },
+      "SweepResponse": {
+        "properties": {
+          "wavelengths": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Wavelengths"
+          },
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/SweepEntryDTO"
+            },
+            "type": "array",
+            "title": "Entries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wavelengths",
+          "entries"
+        ],
+        "title": "SweepResponse"
       },
       "ValidationError": {
         "properties": {

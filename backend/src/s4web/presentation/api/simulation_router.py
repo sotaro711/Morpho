@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
+from s4web.application.usecases.run_angle_sweep import RunAngleSweepUseCase
 from s4web.application.usecases.run_angular_distribution import (
     RunAngularDistributionUseCase,
 )
@@ -16,6 +17,8 @@ from s4web.presentation.schemas.simulation_dto import (
     OrdersResponse,
     SimulationRequest,
     SimulationResponse,
+    SweepRequest,
+    SweepResponse,
 )
 
 router = APIRouter()
@@ -47,3 +50,16 @@ def simulate_orders(
     """反射の回折次数ごとの角度分布を返す。平面多層膜では 0 次（正反射）のみ。"""
     distributions = RunAngularDistributionUseCase(solver).execute(_to_condition(request))
     return OrdersResponse.from_distributions(distributions)
+
+
+@router.post("/simulate/sweep", response_model=SweepResponse)
+def simulate_sweep(
+    request: SweepRequest,
+    solver: Annotated[SolverPort, Depends(get_solver)],
+    colorimetry: Annotated[ColorimetryPort, Depends(get_colorimetry)],
+) -> SweepResponse:
+    """入射角スイープ。角度ごとの R/T スペクトルと(任意で)反射色を返す。"""
+    entries = RunAngleSweepUseCase(solver, colorimetry).execute(
+        _to_condition(request), tuple(request.theta_degs), request.include_colors
+    )
+    return SweepResponse.from_entries(entries)

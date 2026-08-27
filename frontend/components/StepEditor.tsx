@@ -1,7 +1,6 @@
 "use client";
 
 import { NumberInput } from "@/components/NumberInput";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { StepBlock, SteppedConfig } from "@/lib/stepped";
 
@@ -11,10 +10,12 @@ type Props = {
 };
 
 /**
- * 段差（基板上げ）のエディタ。
+ * 段差(基板上げ)のビジュアルエディタ。
  *
- * ブロック（カラム）の幅と「上げる/上げない」を行として並べる。
- * ブロックが空の間は平面多層膜として計算される（モード切替は存在しない）。
+ * ブロックを断面図そのままの「箱」として横に並べる。箱の幅は実際の幅に比例し、
+ * 「上げ」の箱は上にずれて表示される — 見たままが計算される構造になる。
+ * 箱をクリックすると上げ/平が切り替わり、ホバーで削除ボタンが出る。
+ * ブロックが空の間は平面多層膜として計算される。
  */
 export function StepEditor({ value, onChange }: Props) {
   const patch = (p: Partial<SteppedConfig>) => onChange({ ...value, ...p });
@@ -28,11 +29,11 @@ export function StepEditor({ value, onChange }: Props) {
     patch({
       blocks: [
         ...value.blocks,
-        // 交互に「上げ」を初期値にする（段付き構造の典型形に寄せる）
+        // 交互に「上げ」を初期値にする(段付き構造の典型形に寄せる)
         {
           id: crypto.randomUUID(),
           widthNm: 300,
-          raised: value.blocks.length % 2 === 0 ? false : true,
+          raised: value.blocks.length % 2 === 1,
         },
       ],
     });
@@ -42,70 +43,66 @@ export function StepEditor({ value, onChange }: Props) {
 
   return (
     <div className="grid gap-3">
-      <div className="grid grid-cols-[1fr_2fr] items-end gap-2">
-        <div className="grid gap-1">
-          <Label className="text-xs text-muted-foreground">
-            基板上げ高さ (nm)
-          </Label>
-          <NumberInput
-            step={1}
-            value={value.raiseNm}
-            onChange={(raiseNm) => patch({ raiseNm })}
-          />
-        </div>
-        <p className="pb-2 text-xs text-muted-foreground">
-          λ₀/2（干渉の位相を半波長ずらす高さ）が設計の目安
-        </p>
+      <div className="flex items-center gap-2">
+        <Label className="text-xs text-muted-foreground">上げ高さ (nm)</Label>
+        <NumberInput
+          step={1}
+          value={value.raiseNm}
+          onChange={(raiseNm) => patch({ raiseNm })}
+          className="w-24"
+        />
       </div>
 
-      {value.blocks.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          ブロックが無い間は平面多層膜として計算されます。ブロックを追加すると、
-          多層膜スタックが幅ごとのカラムに分かれ、「上げ」のカラムだけ基板上げの
-          台座に乗ります（横方向に周期的に繰り返す構造として解きます）。
-        </p>
-      ) : (
-        <div className="grid gap-2">
-          {value.blocks.map((b, i) => (
-            <div
-              key={b.id}
-              className="grid grid-cols-[1fr_auto_auto] items-end gap-2"
+      <div className="flex items-end gap-1.5 rounded-lg border bg-muted/30 px-3 pb-3 pt-9">
+        {value.blocks.map((b, i) => (
+          <div
+            key={b.id}
+            className="group relative grid min-w-[4.5rem] gap-1"
+            style={{ flexGrow: b.widthNm, flexBasis: 0 }}
+          >
+            <button
+              type="button"
+              onClick={() => updateBlock(i, { raised: !b.raised })}
+              title={b.raised ? "クリックで平らに" : "クリックで上げる"}
+              aria-label={`ブロック${i + 1}(${b.raised ? "上げ" : "平"})`}
+              className={`h-14 w-full rounded-sm border-2 transition-transform ${
+                b.raised
+                  ? "-translate-y-5 border-primary/70 bg-primary/25"
+                  : "border-border bg-secondary"
+              }`}
+            />
+            <button
+              type="button"
+              onClick={() => removeBlock(i)}
+              aria-label={`ブロック${i + 1}を削除`}
+              className="absolute -right-1.5 -top-7 hidden h-5 w-5 items-center justify-center rounded-full border bg-background text-xs leading-none text-muted-foreground shadow-sm group-hover:flex"
             >
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">
-                  ブロック{i + 1} の幅 (nm)
-                </Label>
-                <NumberInput
-                  step={10}
-                  value={b.widthNm}
-                  onChange={(widthNm) => updateBlock(i, { widthNm })}
-                />
-              </div>
-              <label className="flex h-9 cursor-pointer items-center gap-1.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={b.raised}
-                  onChange={(e) => updateBlock(i, { raised: e.target.checked })}
-                  className="h-4 w-4 accent-primary"
-                />
-                上げ
-              </label>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => removeBlock(i)}
-                aria-label={`ブロック${i + 1}を削除`}
-              >
-                削除
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
+              ×
+            </button>
+            <NumberInput
+              step={10}
+              min={1}
+              value={b.widthNm}
+              onChange={(widthNm) => updateBlock(i, { widthNm })}
+              className="h-7 px-1 text-center text-xs"
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addBlock}
+          aria-label="ブロックを追加"
+          className="mb-8 h-14 w-12 shrink-0 rounded-sm border border-dashed text-lg text-muted-foreground hover:bg-secondary"
+        >
+          ＋
+        </button>
+      </div>
 
-      <Button variant="outline" size="sm" onClick={addBlock}>
-        + ブロックを追加
-      </Button>
+      {value.blocks.length === 0 && (
+        <p className="text-xs text-muted-foreground">
+          ＋でブロックを並べると段付き周期構造になります（空のままなら平面多層膜）。
+        </p>
+      )}
     </div>
   );
 }

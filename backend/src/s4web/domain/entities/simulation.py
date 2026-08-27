@@ -44,8 +44,8 @@ class SimulationCondition:
             raise ValueError("wl_points must be >= 1")
         if self.wl_points == 1 and self.wl_min_nm != self.wl_max_nm:
             raise ValueError("wl_points == 1 requires wl_min_nm == wl_max_nm")
-        if not (0.0 <= self.theta_deg < 90.0):
-            raise ValueError("theta_deg must be in [0, 90)")
+        if not (-90.0 < self.theta_deg < 90.0):
+            raise ValueError("theta_deg must be in (-90, 90)")
         if len(self.layers) < 2:
             raise ValueError("at least two layers are required (incident + substrate)")
         if self.num_basis < 1:
@@ -98,3 +98,16 @@ class SimulationOutcome:
 
     spectrum: Spectrum
     reflected_color: ColorResult
+
+
+@dataclass(frozen=True)
+class AngleSweepEntry:
+    """入射角スイープの 1 角度分の結果。
+
+    reflected_color は色変換を省略した場合（波長間隔が色変換に適さない粗い
+    掃引など）に None になる。
+    """
+
+    theta_deg: float
+    spectrum: Spectrum
+    reflected_color: ColorResult | None
