@@ -80,7 +80,12 @@ class SimulationCondition:
 
 @dataclass(frozen=True)
 class Spectrum:
-    """反射率 / 透過率スペクトル。各配列は波長ごとに 1 値。"""
+    """反射率 / 透過率スペクトル。各配列は波長ごとに 1 値。
+
+    反射率・透過率は回折 0 次（正反射・直進透過）の成分。面内パターンを持つ
+    構造では高次回折光は含まない（観測者が正反射方向で見る量に合わせる）。
+    平面多層膜では回折が無いので全反射率と同じ。
+    """
 
     wavelengths_nm: tuple[float, ...]
     reflectance: tuple[float, ...]
