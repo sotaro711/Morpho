@@ -49,8 +49,8 @@ export function periodNm(config: SteppedConfig): number {
 // 入射媒質は空気に固定（stack.ts の規約と同じ。スライスの背景材料にも使う）。
 const AIR: Medium = { n: 1.0, k: 0 };
 
-/** 1 カラムの z 方向プロファイル（下 = 基板側 → 上 = 入射側）。 */
-type Slab = { thicknessNm: number; n: number; k: number };
+/** 1 カラムを構成するスラブ（下 = 基板側 → 上 = 入射側の順）。 */
+export type Slab = { name: string; thicknessNm: number; n: number; k: number };
 
 function columnProfile(
   films: EditableLayer[],
@@ -61,11 +61,11 @@ function columnProfile(
   const prof: Slab[] = [];
   if (raised) {
     // 基板上げ = 基板材料の台座
-    prof.push({ thicknessNm: raiseNm, n: substrate.n, k: substrate.k });
+    prof.push({ name: "基板上げ", thicknessNm: raiseNm, n: substrate.n, k: substrate.k });
   }
   // films は入射側（上）→ 基板側（下）の順なので、下から積むために反転する
   for (const l of [...films].reverse()) {
-    prof.push({ thicknessNm: l.thicknessNm, n: l.n, k: l.k });
+    prof.push({ name: l.name, thicknessNm: l.thicknessNm, n: l.n, k: l.k });
   }
   return prof;
 }
@@ -154,4 +154,39 @@ export function toSteppedSimulationRequest(
     periodNm: period,
     layers,
   };
+}
+
+/** 表示用: 1 カラム分の描画情報。slabs は下から順で、zNm はカラム内の下端高さ。 */
+export type StructureColumn = {
+  xNm: number;
+  widthNm: number;
+  raised: boolean;
+  slabs: (Slab & { zNm: number })[];
+};
+
+/**
+ * 断面図用のカラム分解。計算用スライサーと同じ columnProfile を源にするので、
+ * 表示される構造と計算される構造は常に一致する。ブロックが空なら空配列。
+ */
+export function structureColumns(
+  films: EditableLayer[],
+  substrate: Medium,
+  config: SteppedConfig,
+): { periodNm: number; columns: StructureColumn[] } {
+  const blocks = config.blocks.filter((b) => b.widthNm > 0);
+  const columns: StructureColumn[] = [];
+  let x = 0;
+  for (const b of blocks) {
+    let z = 0;
+    const slabs = columnProfile(films, substrate, b.raised, config.raiseNm).map(
+      (slab) => {
+        const placed = { ...slab, zNm: z };
+        z += slab.thicknessNm;
+        return placed;
+      },
+    );
+    columns.push({ xNm: x, widthNm: b.widthNm, raised: b.raised, slabs });
+    x += b.widthNm;
+  }
+  return { periodNm: x, columns };
 }
