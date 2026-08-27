@@ -2,6 +2,7 @@
 
 S4 の C 拡張に依存する唯一の場所。domain / application はこのモジュールを知らない。
 SimulationCondition を S4 の API 呼び出しに変換し、波長を掃引して R/T を得る。
+R/T は回折 0 次（正反射・直進透過）の成分（詳細は _solve_at の docstring）。
 
 単位: domain は nm。S4 は無次元（長さの単位を1つ選んで一貫すればよい）なので、
 内部では μm に統一する（厚さ・波長・周期をすべて μm に換算）。
@@ -166,23 +167,36 @@ class S4Solver(SolverPort):
 
 
 def _solve_at(sim, top_name: str, bottom_name: str, wl_nm: float) -> tuple[float, float]:
-    """1 波長を解いて (反射率, 透過率) を返す。
+    """1 波長を解いて 0 次（正反射・直進透過）の (反射率, 透過率) を返す。
 
     波長（周波数 = 1/λ）を設定した時点で S4 はその波長について RCWA を解く:
     各層を固有モードに分解（SolveLayerEigensystem）し、層間を散乱行列（S 行列）で
     接続して全体の場を求める（S4 内部 rcwa.cpp の SolveAll）。
+
+    面内パターンがある場合、反射光は回折次数 m = 0, ±1, ±2, … に分かれる。
+    観測者が正反射方向で見る量は m = 0 成分なので、それを反射率とする
+    （全次数の合計は「反射側に戻った総エネルギー」であり、見え方とは別の量）。
+    平面多層膜は次数が (0,0) の 1 つだけなので従来の全パワー計算と一致する。
     """
     wl_um = wl_nm / _NM_PER_UM
     sim.SetFrequency(1.0 / wl_um)
-    # GetPowerFlux は層境界のポインティングフラックス（GetZPoyntingFlux）を返す。
-    # 戻り値は (前進波パワー, 後退波パワー)。
-    forw_top, back_top = sim.GetPowerFlux(S4_Layer=top_name)
-    forw_bot, _ = sim.GetPowerFlux(S4_Layer=bottom_name)
-    incident = forw_top.real
+    # GetPowerFluxByOrder は層境界のポインティングフラックスを基底（次数）ごとに
+    # 返す。各要素は (前進波パワー, 後退波パワー)。
+    fluxes_top = sim.GetPowerFluxByOrder(S4_Layer=top_name)
+    fluxes_bot = sim.GetPowerFluxByOrder(S4_Layer=bottom_name)
+    i0 = sim.GetBasisSet().index((0, 0))
+    # 入射波は 0 次のみだが、規格化は前進波の合計で行う（_orders_at と同じ規約）。
+    incident = sum(f.real for f, _ in fluxes_top)
     if incident == 0.0:
         return 0.0, 0.0
+    # Rayleigh 点の発散は高次側に出て 0 次だけ正常に見えることがあるため、
+    # 異常検出用に全次数の合計も返す（呼び出し側の _is_anomalous 判定用）。
+    total_r = sum(-b.real for _, b in fluxes_top) / incident
+    total_t = sum(f.real for f, _ in fluxes_bot) / incident
+    if _is_anomalous(total_r, total_t):
+        return total_r, total_t
     # 入射層の後退波 = 反射、基板層の前進波 = 透過。入射パワーで規格化。
-    return -back_top.real / incident, forw_bot.real / incident
+    return -fluxes_top[i0][1].real / incident, fluxes_bot[i0][0].real / incident
 
 
 def _orders_at(
