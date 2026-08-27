@@ -24,6 +24,10 @@ class SimulationCondition:
     面内パターン（Layer.regions）を持つ層がある場合は面内周期 period_nm が
     必須になる。平面多層膜（パターンなし）では period_nm は不要で、
     num_basis=1 が厳密（回折は 0 次のみ）。
+
+    波長は通常 [wl_min_nm, wl_max_nm] の等間隔 wl_points 点。等間隔で表せない
+    サンプル（参照データとの突き合わせなど）は explicit_wavelengths_nm で
+    明示リストを与える。指定時は wl_min/wl_max/wl_points を使わない。
     """
 
     wl_min_nm: float
@@ -34,6 +38,7 @@ class SimulationCondition:
     layers: tuple[Layer, ...]
     period_nm: float | None = None
     num_basis: int = 1
+    explicit_wavelengths_nm: tuple[float, ...] | None = None
 
     def __post_init__(self) -> None:
         if self.wl_min_nm <= 0 or self.wl_max_nm <= 0:
@@ -50,6 +55,19 @@ class SimulationCondition:
             raise ValueError("at least two layers are required (incident + substrate)")
         if self.num_basis < 1:
             raise ValueError(f"num_basis must be >= 1, got {self.num_basis}")
+        if self.explicit_wavelengths_nm is not None:
+            if len(self.explicit_wavelengths_nm) == 0:
+                raise ValueError("explicit_wavelengths_nm must not be empty")
+            for wl in self.explicit_wavelengths_nm:
+                if wl <= 0:
+                    raise ValueError(f"explicit wavelengths must be positive, got {wl}")
+            for prev, nxt in zip(
+                self.explicit_wavelengths_nm, self.explicit_wavelengths_nm[1:], strict=False
+            ):
+                if nxt <= prev:
+                    raise ValueError(
+                        f"explicit_wavelengths_nm must be strictly increasing ({prev} -> {nxt})"
+                    )
         if self.period_nm is not None and self.period_nm <= 0:
             raise ValueError(f"period_nm must be positive, got {self.period_nm}")
         patterned = [layer for layer in self.layers if layer.is_patterned]
@@ -71,7 +89,13 @@ class SimulationCondition:
         return any(layer.is_patterned for layer in self.layers)
 
     def wavelengths_nm(self) -> list[float]:
-        """[wl_min, wl_max] を wl_points 点で等間隔サンプルした波長リスト。"""
+        """計算する波長のリスト。
+
+        explicit_wavelengths_nm があればそれをそのまま、無ければ
+        [wl_min, wl_max] を wl_points 点で等間隔サンプルして返す。
+        """
+        if self.explicit_wavelengths_nm is not None:
+            return list(self.explicit_wavelengths_nm)
         if self.wl_points == 1:
             return [self.wl_min_nm]
         step = (self.wl_max_nm - self.wl_min_nm) / (self.wl_points - 1)

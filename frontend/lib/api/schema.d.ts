@@ -191,6 +191,8 @@ export interface components {
              * @default 1
              */
             numBasis: number;
+            /** Wavelengthsnm */
+            wavelengthsNm?: number[] | null;
         };
         /** SimulationResponse */
         SimulationResponse: {
@@ -242,6 +244,8 @@ export interface components {
              * @default 1
              */
             numBasis: number;
+            /** Wavelengthsnm */
+            wavelengthsNm?: number[] | null;
             /** Thetadegs */
             thetaDegs: number[];
             /**

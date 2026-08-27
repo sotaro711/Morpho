@@ -48,9 +48,11 @@ const AngleSpectraChart = dynamic(
 // 見た目の色・角度別スペクトル用: 0/30/60°、波長は 10nm 間隔(色変換できる間隔)。
 const COLOR_THETAS = [0, 30, 60];
 const COLOR_SWEEP_WL = { wlMin: 380, wlMax: 780, wlPoints: 41 };
-// 角度スイープチャート用: -80〜80° を 10° 刻み、代表 5 波長(400/475/550/625/700)。
+// 角度スイープチャート用: -80〜80° を 10° 刻み、代表 5 波長。
+// 波長は研究スライド(COMSOL 参照結果)と同じ値。550nm 付近はストップバンドの
+// 急峻な端で 10nm ずれると曲線の形が変わるため、等間隔グリッドではなく明示する。
 const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
-const ANGLE_SWEEP_WL = { wlMin: 400, wlMax: 700, wlPoints: 5 };
+const ANGLE_SWEEP_WL = { wavelengthsNm: [400, 470, 540, 600, 700] };
 
 export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
