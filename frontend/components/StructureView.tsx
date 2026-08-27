@@ -4,8 +4,10 @@ import type { Annotations, Shape } from "plotly.js";
 
 import Plot from "@/components/Plot";
 import type { LayerDTO } from "@/lib/api/client";
+import type { StructureColumn } from "@/lib/stepped";
 
 // 構造の2次元断面図（横軸=位置, 縦軸=高さ）。入力の層データだけから描く（API 不要）。
+// stepped が渡されたら段付きモード: カラムごとの矩形を実寸の x 座標で描く。
 
 const PALETTE = [
   "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
@@ -15,7 +17,103 @@ const PALETTE = [
 // 平面多層膜には面内の周期が無いので、断面図の横幅は表示用の公称値を使う。
 const DISPLAY_WIDTH = 100;
 
-export default function StructureView({ layers }: { layers: LayerDTO[] }) {
+export default function StructureView({
+  layers,
+  stepped,
+}: {
+  layers: LayerDTO[];
+  stepped?: { periodNm: number; columns: StructureColumn[] };
+}) {
+  if (stepped && stepped.columns.length > 0) {
+    return <SteppedView periodNm={stepped.periodNm} columns={stepped.columns} />;
+  }
+  return <PlanarView layers={layers} />;
+}
+
+/** 段付きモード: 1 周期分の断面をカラムごとに実寸で描く。 */
+function SteppedView({
+  periodNm,
+  columns,
+}: {
+  periodNm: number;
+  columns: StructureColumn[];
+}) {
+  // 材料名 → 色。平面モードと同じく膜(上の層)から順に割り当て、基板は最後。
+  // 「基板上げ」は基板と同じ材料なので同じ色にする。
+  const names = new Set<string>();
+  // slabs は下→上の順なので、平面モード(上の層から順)と同じ割り当てになるよう反転して走査する
+  for (const c of columns) for (const s of [...c.slabs].reverse()) names.add(s.name);
+  names.delete("基板上げ");
+  names.add("基板");
+  const colorOf = new Map<string, string>();
+  [...names].forEach((m, i) => colorOf.set(m, PALETTE[i % PALETTE.length]));
+  colorOf.set("基板上げ", colorOf.get("基板")!);
+
+  const maxTop = Math.max(
+    ...columns.map((c) => {
+      const last = c.slabs[c.slabs.length - 1];
+      return last ? last.zNm + last.thicknessNm : 0;
+    }),
+  );
+  const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
+
+  const shapes: Partial<Shape>[] = [
+    rect(0, 0, periodNm, subH, colorOf.get("基板")!),
+  ];
+  for (const c of columns) {
+    for (const slab of c.slabs) {
+      shapes.push(
+        rect(
+          c.xNm,
+          subH + slab.zNm,
+          c.xNm + c.widthNm,
+          subH + slab.zNm + slab.thicknessNm,
+          colorOf.get(slab.name) ?? "#cccccc",
+        ),
+      );
+    }
+  }
+
+  const annotations: Partial<Annotations>[] = [
+    {
+      x: periodNm / 2,
+      y: subH / 2,
+      text: "基板",
+      showarrow: false,
+      font: { color: "#ffffff", size: 11 },
+    },
+  ];
+
+  return (
+    <Plot
+      data={[]}
+      layout={{
+        autosize: true,
+        height: 320,
+        margin: { l: 48, r: 16, t: 8, b: 40 },
+        xaxis: {
+          title: { text: "位置 (nm) — 1 周期分" },
+          range: [0, periodNm],
+          zeroline: false,
+        },
+        yaxis: {
+          title: { text: "高さ (nm)" },
+          range: [0, subH + maxTop * 1.05],
+          zeroline: false,
+        },
+        shapes,
+        annotations,
+        plot_bgcolor: "#ffffff",
+      }}
+      useResizeHandler
+      style={{ width: "100%" }}
+      config={{ displayModeBar: false, responsive: true }}
+    />
+  );
+}
+
+/** 平面モード: 従来どおり全層を横幅いっぱいの帯として描く。 */
+function PlanarView({ layers }: { layers: LayerDTO[] }) {
   // 材料名 → 色 のマップ。
   const materials = new Set<string>();
   for (const l of layers) {

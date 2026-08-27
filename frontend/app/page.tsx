@@ -27,6 +27,8 @@ import {
 } from "@/lib/stack";
 import {
   DEFAULT_STEPPED,
+  isStepped,
+  structureColumns,
   toSteppedSimulationRequest,
   type SteppedConfig,
 } from "@/lib/stepped";
@@ -142,7 +144,14 @@ export default function Home() {
               <CardTitle className="text-base">構造の断面図</CardTitle>
             </CardHeader>
             <CardContent>
-              <StructureView layers={structureLayers(films, substrate)} />
+              <StructureView
+                layers={structureLayers(films, substrate)}
+                stepped={
+                  isStepped(stepped)
+                    ? structureColumns(films, substrate, stepped)
+                    : undefined
+                }
+              />
             </CardContent>
           </Card>
 
