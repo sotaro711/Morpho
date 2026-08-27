@@ -373,6 +373,22 @@
             "minimum": 1.0,
             "title": "Numbasis",
             "default": 1
+          },
+          "wavelengthsNm": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array",
+                "maxItems": 2001,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wavelengthsnm"
           }
         },
         "type": "object",
@@ -510,6 +526,22 @@
             "minimum": 1.0,
             "title": "Numbasis",
             "default": 1
+          },
+          "wavelengthsNm": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array",
+                "maxItems": 2001,
+                "minItems": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wavelengthsnm"
           },
           "thetaDegs": {
             "items": {

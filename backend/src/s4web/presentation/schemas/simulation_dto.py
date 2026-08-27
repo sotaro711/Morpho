@@ -67,6 +67,9 @@ class SimulationRequest(_CamelModel):
     # 面内パターンを使う場合のみ指定する（平面多層膜では省略 = 従来どおり）。
     period_nm: float | None = None
     num_basis: int = Field(ge=1, default=1)
+    # 等間隔で表せない波長サンプル用の明示リスト（昇順）。指定時は
+    # wlMin / wlMax / wlPoints を使わず、このリストの波長だけを計算する。
+    wavelengths_nm: list[float] | None = Field(default=None, min_length=1, max_length=2001)
 
     def to_condition(self) -> SimulationCondition:
         return SimulationCondition(
@@ -78,6 +81,9 @@ class SimulationRequest(_CamelModel):
             layers=tuple(layer.to_entity() for layer in self.layers),
             period_nm=self.period_nm,
             num_basis=self.num_basis,
+            explicit_wavelengths_nm=(
+                tuple(self.wavelengths_nm) if self.wavelengths_nm is not None else None
+            ),
         )
 
 
@@ -147,15 +153,28 @@ class SweepRequest(SimulationRequest):
             if not (-90.0 < theta < 90.0):
                 raise ValueError(f"theta_degs must be in (-90, 90), got {theta}")
         if self.include_colors:
-            if self.wl_points < 2:
-                raise ValueError("includeColors requires wlPoints >= 2")
-            interval = (self.wl_max - self.wl_min) / (self.wl_points - 1)
-            if not any(abs(interval - v) < 1e-9 for v in _COLOR_WL_INTERVALS_NM):
+            intervals = self._wavelength_intervals()
+            if not intervals:
+                raise ValueError("includeColors requires at least 2 wavelengths")
+            if not all(
+                any(abs(interval - v) < 1e-9 for v in _COLOR_WL_INTERVALS_NM)
+                for interval in intervals
+            ):
+                got = ", ".join(f"{interval:g}" for interval in sorted(set(intervals)))
                 raise ValueError(
-                    "includeColors requires a wavelength interval of 1, 5, 10 or 20 nm "
-                    f"(got {interval:g} nm); set includeColors=false or adjust wlPoints"
+                    "includeColors requires a uniform wavelength interval of 1, 5, 10 or "
+                    f"20 nm (got {got} nm); set includeColors=false or adjust wavelengths"
                 )
         return self
+
+    def _wavelength_intervals(self) -> list[float]:
+        """実際に計算される波長列の隣接間隔（2 点未満なら空）。"""
+        if self.wavelengths_nm is not None:
+            wls = self.wavelengths_nm
+            return [nxt - prev for prev, nxt in zip(wls, wls[1:], strict=False)]
+        if self.wl_points < 2:
+            return []
+        return [(self.wl_max - self.wl_min) / (self.wl_points - 1)]
 
 
 class SweepEntryDTO(BaseModel):

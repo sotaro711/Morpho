@@ -33,8 +33,13 @@ export const DEFAULT_STEPPED: SteppedConfig = {
   blocks: [],
 };
 
-/** 段付き計算の基底数。検証スクリプトで収束を確認した値（ΔR 〜 1e-3）。 */
-export const STEPPED_NUM_BASIS = 61;
+/**
+ * 段付き計算の基底数（m = -11〜+11 の 23 個）。
+ * 参照構造(900/300 ブロック・TiO2/SiO2 7 ペア)で 61 との差が全点 ≤0.03 に
+ * 収まることを確認済み。計算量は基底数のほぼ 3 乗なので 61 比で約 18 倍速い。
+ * より細かいパターンで収束が怪しいときは UI の numBasis で上書きして上げる。
+ */
+export const STEPPED_NUM_BASIS = 23;
 
 /** 段差が設定されているか（= 段付き周期構造として計算するか）。 */
 export function isStepped(config: SteppedConfig): boolean {
