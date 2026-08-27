@@ -6,6 +6,7 @@ import { useState } from "react";
 import { LayerEditor } from "@/components/LayerEditor";
 import { NumberInput } from "@/components/NumberInput";
 import { SettingsForm } from "@/components/SettingsForm";
+import { StepEditor } from "@/components/StepEditor";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,10 +22,16 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_SUBSTRATE,
   structureLayers,
-  toSimulationRequest,
   type Medium,
   type Settings,
 } from "@/lib/stack";
+import {
+  DEFAULT_STEPPED,
+  isStepped,
+  periodNm,
+  toSteppedSimulationRequest,
+  type SteppedConfig,
+} from "@/lib/stepped";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const SpectrumChart = dynamic(() => import("@/components/SpectrumChart"), {
@@ -33,18 +40,30 @@ const SpectrumChart = dynamic(() => import("@/components/SpectrumChart"), {
 const StructureView = dynamic(() => import("@/components/StructureView"), {
   ssr: false,
 });
+/** 直近の計算が「何として」解かれたか(結果バッジ用)。 */
+type LastRun = { stepped: boolean; periodNm: number; numBasis: number };
 
 export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [substrate, setSubstrate] = useState<Medium>(DEFAULT_SUBSTRATE);
   const [films, setFilms] = useState<EditableLayer[]>(DEFAULT_FILMS);
+  const [stepped, setStepped] = useState<SteppedConfig>(DEFAULT_STEPPED);
+  const [lastRun, setLastRun] = useState<LastRun | null>(null);
   const { result, error, loading, run } = useSimulation();
 
   const patchSettings = (p: Partial<Settings>) =>
     setSettings((s) => ({ ...s, ...p }));
 
-  const runSimulation = () =>
-    run(toSimulationRequest(settings, films, substrate));
+  const runSimulation = () => {
+    // 段差の有無は選ぶものではなく、設定の結果として決まる。
+    const request = toSteppedSimulationRequest(settings, films, substrate, stepped);
+    setLastRun({
+      stepped: isStepped(stepped),
+      periodNm: periodNm(stepped),
+      numBasis: request.numBasis,
+    });
+    run(request);
+  };
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-8">
@@ -80,6 +99,18 @@ export default function Home() {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">段差（基板上げ）</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                多層膜を横方向のブロックに分け、一部を持ち上げて周期構造にします。
+              </p>
+            </CardHeader>
+            <CardContent>
+              <StepEditor value={stepped} onChange={setStepped} />
+            </CardContent>
+          </Card>
+
           <Button onClick={runSimulation} disabled={loading} className="w-full">
             {loading ? "計算中…" : "計算する"}
           </Button>
@@ -111,6 +142,7 @@ export default function Home() {
             <CardContent>
               {result ? (
                 <>
+                  {lastRun && <RunBadge lastRun={lastRun} />}
                   <ColorSwatch color={result.reflectedColor} />
                   <SpectrumChart result={result} />
                 </>
@@ -121,9 +153,21 @@ export default function Home() {
               )}
             </CardContent>
           </Card>
+
         </div>
       </div>
     </main>
+  );
+}
+
+/** 直近の計算が「何として」解かれたかのバッジ。 */
+function RunBadge({ lastRun }: { lastRun: LastRun }) {
+  return (
+    <div className="mb-3 inline-flex items-center rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
+      {lastRun.stepped
+        ? `段付き周期構造として計算（周期 ${lastRun.periodNm} nm・基底数 ${lastRun.numBasis}）`
+        : "平面多層膜として計算"}
+    </div>
   );
 }
 
