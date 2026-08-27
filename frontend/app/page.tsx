@@ -15,8 +15,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import type { EditableLayer } from "@/lib/api/client";
-import { useSimulation } from "@/lib/hooks/use-simulation";
+import type { EditableLayer, SweepResponse } from "@/lib/api/client";
+import { useSweep } from "@/lib/hooks/use-sweep";
 import {
   DEFAULT_FILMS,
   DEFAULT_SETTINGS,
@@ -27,42 +27,59 @@ import {
 } from "@/lib/stack";
 import {
   DEFAULT_STEPPED,
-  isStepped,
-  periodNm,
   toSteppedSimulationRequest,
   type SteppedConfig,
 } from "@/lib/stepped";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
-const SpectrumChart = dynamic(() => import("@/components/SpectrumChart"), {
-  ssr: false,
-});
 const StructureView = dynamic(() => import("@/components/StructureView"), {
   ssr: false,
 });
-/** 直近の計算が「何として」解かれたか(結果バッジ用)。 */
-type LastRun = { stepped: boolean; periodNm: number; numBasis: number };
+const AngleSweepChart = dynamic(() => import("@/components/AngleSweepChart"), {
+  ssr: false,
+});
+const AngleSpectraChart = dynamic(
+  () => import("@/components/AngleSpectraChart"),
+  { ssr: false },
+);
+
+// 見た目の色・角度別スペクトル用: 0/30/60°、波長は 10nm 間隔(色変換できる間隔)。
+const COLOR_THETAS = [0, 30, 60];
+const COLOR_SWEEP_WL = { wlMin: 380, wlMax: 780, wlPoints: 41 };
+// 角度スイープチャート用: -80〜80° を 10° 刻み、代表 5 波長(400/475/550/625/700)。
+const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
+const ANGLE_SWEEP_WL = { wlMin: 400, wlMax: 700, wlPoints: 5 };
 
 export default function Home() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [substrate, setSubstrate] = useState<Medium>(DEFAULT_SUBSTRATE);
   const [films, setFilms] = useState<EditableLayer[]>(DEFAULT_FILMS);
   const [stepped, setStepped] = useState<SteppedConfig>(DEFAULT_STEPPED);
-  const [lastRun, setLastRun] = useState<LastRun | null>(null);
-  const { result, error, loading, run } = useSimulation();
+  const colorsSweep = useSweep(); // 色チップ + 角度別スペクトル
+  const anglesSweep = useSweep(); // 角度スイープチャート
+  const loading = colorsSweep.loading || anglesSweep.loading;
+  const error = colorsSweep.error ?? anglesSweep.error;
 
   const patchSettings = (p: Partial<Settings>) =>
     setSettings((s) => ({ ...s, ...p }));
 
-  const runSimulation = () => {
+  const runSimulation = async () => {
     // 段差の有無は選ぶものではなく、設定の結果として決まる。
-    const request = toSteppedSimulationRequest(settings, films, substrate, stepped);
-    setLastRun({
-      stepped: isStepped(stepped),
-      periodNm: periodNm(stepped),
-      numBasis: request.numBasis,
+    const base = toSteppedSimulationRequest(settings, films, substrate, stepped);
+    // 直列に実行する: バックエンドは 1 リクエストずつ解くので並列でも速くならず、
+    // 待ち行列に入った方がプロキシタイムアウトに達するリスクだけが増えるため。
+    await colorsSweep.run({
+      ...base,
+      ...COLOR_SWEEP_WL,
+      thetaDegs: COLOR_THETAS,
+      includeColors: true,
     });
-    run(request);
+    await anglesSweep.run({
+      ...base,
+      ...ANGLE_SWEEP_WL,
+      thetaDegs: ANGLE_THETAS,
+      includeColors: false,
+    });
   };
 
   return (
@@ -87,9 +104,6 @@ export default function Home() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">多層膜</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                上が入射側（空気）、下が基板。多層膜を上に積み上げます。
-              </p>
             </CardHeader>
             <CardContent className="grid gap-3">
               <LayerEditor layers={films} onChange={setFilms} />
@@ -101,10 +115,7 @@ export default function Home() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">段差（基板上げ）</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                多層膜を横方向のブロックに分け、一部を持ち上げて周期構造にします。
-              </p>
+              <CardTitle className="text-base">段差</CardTitle>
             </CardHeader>
             <CardContent>
               <StepEditor value={stepped} onChange={setStepped} />
@@ -137,57 +148,66 @@ export default function Home() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">スペクトル</CardTitle>
+              <CardTitle className="text-base">見た目の色</CardTitle>
             </CardHeader>
             <CardContent>
-              {result ? (
-                <>
-                  {lastRun && <RunBadge lastRun={lastRun} />}
-                  <ColorSwatch color={result.reflectedColor} />
-                  <SpectrumChart result={result} />
-                </>
+              {colorsSweep.result ? (
+                <AngleColorChips sweep={colorsSweep.result} />
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  「計算する」を押すと結果が表示されます。
+                  {colorsSweep.loading
+                    ? "計算中…（段付き構造では数分かかります）"
+                    : "「計算する」を押すと結果が表示されます。"}
                 </p>
               )}
             </CardContent>
           </Card>
 
+          {(anglesSweep.result || anglesSweep.loading) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">角度スイープ</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {anglesSweep.result ? (
+                  <AngleSweepChart sweep={anglesSweep.result} />
+                ) : (
+                  <p className="text-sm text-muted-foreground">計算中…</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {colorsSweep.result && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">反射スペクトル（角度ごとの波長依存性）</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AngleSpectraChart sweep={colorsSweep.result} />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </main>
   );
 }
 
-/** 直近の計算が「何として」解かれたかのバッジ。 */
-function RunBadge({ lastRun }: { lastRun: LastRun }) {
+/** 入射角ごとの見た目の色チップ(研究スライド上段の形式)。 */
+function AngleColorChips({ sweep }: { sweep: SweepResponse }) {
   return (
-    <div className="mb-3 inline-flex items-center rounded-full bg-secondary px-3 py-1 text-xs text-secondary-foreground">
-      {lastRun.stepped
-        ? `段付き周期構造として計算（周期 ${lastRun.periodNm} nm・基底数 ${lastRun.numBasis}）`
-        : "平面多層膜として計算"}
-    </div>
-  );
-}
-
-function ColorSwatch({
-  color,
-}: {
-  color: { r: number; g: number; b: number; hex: string };
-}) {
-  return (
-    <div className="mb-4 flex items-center gap-3">
-      <div
-        className="h-12 w-12 rounded-md border"
-        style={{ backgroundColor: color.hex }}
-      />
-      <div className="text-sm">
-        <div className="font-semibold">反射色（構造色）</div>
-        <div className="text-muted-foreground">
-          {color.hex} · RGB({color.r}, {color.g}, {color.b})
+    <div className="flex justify-center gap-8">
+      {sweep.entries.map((e) => (
+        <div key={e.thetaDeg} className="grid justify-items-center gap-1.5">
+          <span className="text-sm font-semibold">{Math.round(e.thetaDeg)}°</span>
+          <div
+            className="h-16 w-16 rounded-md border"
+            style={{ backgroundColor: e.color?.hex }}
+          />
+          <span className="text-xs text-muted-foreground">{e.color?.hex}</span>
         </div>
-      </div>
+      ))}
     </div>
   );
 }
