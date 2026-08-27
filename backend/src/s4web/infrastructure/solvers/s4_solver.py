@@ -153,8 +153,12 @@ class S4Solver(SolverPort):
             s_amp, p_amp = 1.0, 0.0
         else:
             s_amp, p_amp = 0.0, 1.0
+        # 負の入射角(角度スイープ用)は「極角 |θ|・方位角 180°」= 反対側からの
+        # 入射として S4 に渡す。
+        theta = condition.theta_deg
+        incidence = (theta, 0.0) if theta >= 0 else (-theta, 180.0)
         sim.SetExcitationPlanewave(
-            IncidenceAngles=(condition.theta_deg, 0.0),  # (polar, azimuth) degrees
+            IncidenceAngles=incidence,  # (polar, azimuth) degrees
             sAmplitude=s_amp,
             pAmplitude=p_amp,
         )

@@ -41,6 +41,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/simulate/sweep": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Simulate Sweep
+         * @description 入射角スイープ。角度ごとの R/T スペクトルと(任意で)反射色を返す。
+         */
+        post: operations["simulate_sweep_api_simulate_sweep_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -182,6 +202,61 @@ export interface components {
             T: number[];
             reflectedColor: components["schemas"]["ColorDTO"];
         };
+        /**
+         * SweepEntryDTO
+         * @description 1 入射角分の結果。キーは SimulationResponse に合わせて R / T。
+         */
+        SweepEntryDTO: {
+            /** Thetadeg */
+            thetaDeg: number;
+            /** R */
+            R: number[];
+            /** T */
+            T: number[];
+            color?: components["schemas"]["ColorDTO"] | null;
+        };
+        /**
+         * SweepRequest
+         * @description 入射角スイープのリクエスト。theta_deg の代わりに theta_degs を掃引する。
+         */
+        SweepRequest: {
+            /** Wlmin */
+            wlMin: number;
+            /** Wlmax */
+            wlMax: number;
+            /** Wlpoints */
+            wlPoints: number;
+            /**
+             * Thetadeg
+             * @default 0
+             */
+            thetaDeg: number;
+            /** @default s */
+            pol: components["schemas"]["Polarization"];
+            /** Layers */
+            layers: components["schemas"]["LayerDTO"][];
+            /** Periodnm */
+            periodNm?: number | null;
+            /**
+             * Numbasis
+             * @default 1
+             */
+            numBasis: number;
+            /** Thetadegs */
+            thetaDegs: number[];
+            /**
+             * Includecolors
+             * @default true
+             */
+            includeColors: boolean;
+        };
+        /** SweepResponse */
+        SweepResponse: {
+            /** Wavelengths */
+            wavelengths: number[];
+            /** Entries */
+            entries: components["schemas"]["SweepEntryDTO"][];
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -257,6 +332,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrdersResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    simulate_sweep_api_simulate_sweep_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SweepRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SweepResponse"];
                 };
             };
             /** @description Validation Error */
