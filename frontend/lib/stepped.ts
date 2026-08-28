@@ -59,7 +59,7 @@ export function periodNm(config: SteppedConfig): number {
 }
 
 // 入射媒質は空気に固定（stack.ts の規約と同じ。スライスの背景材料にも使う）。
-const AIR: Medium = { n: 1.0, k: 0 };
+const AIR: Medium = { name: "空気", n: 1.0, k: 0 };
 
 /** 1 カラムを構成するスラブ（下 = 基板側 → 上 = 入射側の順）。 */
 export type Slab = { name: string; thicknessNm: number; n: number; k: number };
@@ -72,8 +72,8 @@ function columnProfile(
 ): Slab[] {
   const prof: Slab[] = [];
   if (raised) {
-    // 基板上げ = 基板材料の台座
-    prof.push({ name: "基板上げ", thicknessNm: raiseNm, n: substrate.n, k: substrate.k });
+    // 基板上げ = 基板材料の台座。名前も基板と揃え、断面図で同じ色になるようにする
+    prof.push({ name: substrate.name, thicknessNm: raiseNm, n: substrate.n, k: substrate.k });
   }
   // films は入射側（上）→ 基板側（下）の順なので、下から積むために反転する
   for (const l of [...films].reverse()) {
@@ -133,7 +133,7 @@ export function toSteppedSimulationRequest(
 
   // 入射側（上）の半無限空気層 → スライスを上から順に → 基板の半無限層
   const layers: LayerDTO[] = [
-    { name: "空気", thicknessNm: 0, n: AIR.n, k: AIR.k, regions: [] },
+    { name: AIR.name, thicknessNm: 0, n: AIR.n, k: AIR.k, regions: [] },
   ];
   for (let i = zs.length - 2; i >= 0; i--) {
     const zMid = (zs[i] + zs[i + 1]) / 2;
@@ -152,7 +152,7 @@ export function toSteppedSimulationRequest(
     });
   }
   layers.push({
-    name: "基板",
+    name: substrate.name,
     thicknessNm: 0,
     n: substrate.n,
     k: substrate.k,

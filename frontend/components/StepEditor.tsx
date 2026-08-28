@@ -119,12 +119,6 @@ export function StepEditor({ value, onChange }: Props) {
           ＋
         </button>
       </div>
-
-      {value.blocks.length === 0 && (
-        <p className="text-xs text-muted-foreground">
-          ＋でブロックを並べると段付き周期構造になります（空のままなら平面多層膜）。
-        </p>
-      )}
     </div>
   );
 }

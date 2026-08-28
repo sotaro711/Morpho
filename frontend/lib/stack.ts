@@ -17,8 +17,8 @@ import type {
 /** 計算条件のスカラー部分（層・媒質を除く）。 */
 export type Settings = Omit<SimulationRequest, "layers">;
 
-/** 入射媒質・基板（半無限）の光学定数。 */
-export type Medium = { n: number; k: number };
+/** 入射媒質・基板（半無限）の名前と光学定数。 */
+export type Medium = { name: string; n: number; k: number };
 
 export const DEFAULT_SETTINGS: Settings = {
   wlMin: 380,
@@ -41,10 +41,10 @@ export const DEFAULT_FILMS: EditableLayer[] = [
   },
 ];
 
-export const DEFAULT_SUBSTRATE: Medium = { n: 1.5, k: 0 }; // ガラス
+export const DEFAULT_SUBSTRATE: Medium = { name: "SUS", n: 1.71, k: 2.88 };
 
 // 入射媒質は空気に固定（光が入ってくる側。UI には出さない）。
-const INCIDENT_AIR: Medium = { n: 1.0, k: 0 };
+const INCIDENT_AIR: Medium = { name: "空気", n: 1.0, k: 0 };
 
 /** 多層膜 + 基板（断面図に表示する層。入射側の空気は含まない）。 */
 export function structureLayers(
@@ -60,14 +60,14 @@ export function structureLayers(
       k: l.k,
       regions: l.regions,
     })),
-    { name: "基板", thicknessNm: 0, n: substrate.n, k: substrate.k, regions: [] },
+    { name: substrate.name, thicknessNm: 0, n: substrate.n, k: substrate.k, regions: [] },
   ];
 }
 
 // API 用の層リスト（入射側→基板）。先頭に入射側の空気を付与する。
 function buildLayers(films: EditableLayer[], substrate: Medium): LayerDTO[] {
   return [
-    { name: "空気", thicknessNm: 0, n: INCIDENT_AIR.n, k: INCIDENT_AIR.k, regions: [] },
+    { name: INCIDENT_AIR.name, thicknessNm: 0, n: INCIDENT_AIR.n, k: INCIDENT_AIR.k, regions: [] },
     ...structureLayers(films, substrate),
   ];
 }

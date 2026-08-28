@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { LayerEditor } from "@/components/LayerEditor";
 import { NumberInput } from "@/components/NumberInput";
+import { PairInsertForm } from "@/components/PairInsertForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { StepEditor } from "@/components/StepEditor";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { EditableLayer, SweepResponse } from "@/lib/api/client";
 import { useSweep } from "@/lib/hooks/use-sweep";
@@ -121,6 +123,18 @@ export default function Home() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">ペアをまとめて挿入</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* 多層膜スタックの一番上（入射側寄り）にまとめて積む */}
+              <PairInsertForm
+                onInsert={(block) => setFilms((prev) => [...block, ...prev])}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">段差</CardTitle>
             </CardHeader>
             <CardContent>
@@ -194,7 +208,7 @@ export default function Home() {
           {(colorsSweep.result || colorsSweep.loading) && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">反射スペクトル（角度ごとの波長依存性）</CardTitle>
+                <CardTitle className="text-base">反射スペクトル</CardTitle>
               </CardHeader>
               <CardContent>
                 {colorsSweep.result ? (
@@ -239,8 +253,15 @@ function MediumRow({
   onChange: (v: Medium) => void;
 }) {
   return (
-    <div className="grid grid-cols-[1fr_1fr_1fr] items-end gap-2">
+    <div className="grid grid-cols-[auto_1fr_1fr_1fr] items-end gap-2">
       <span className="pb-2 text-sm font-semibold">{label}</span>
+      <div className="grid gap-1">
+        <Label className="text-xs text-muted-foreground">名前</Label>
+        <Input
+          value={value.name}
+          onChange={(e) => onChange({ ...value, name: e.target.value })}
+        />
+      </div>
       <div className="grid gap-1">
         <Label className="text-xs text-muted-foreground">屈折率 n</Label>
         <NumberInput

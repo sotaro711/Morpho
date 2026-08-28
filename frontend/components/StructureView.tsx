@@ -25,7 +25,15 @@ export default function StructureView({
   stepped?: { periodNm: number; columns: StructureColumn[] };
 }) {
   if (stepped && stepped.columns.length > 0) {
-    return <SteppedView periodNm={stepped.periodNm} columns={stepped.columns} />;
+    // 基板は layers の末尾（structureLayers の規約）。名前を段付き表示にも引き継ぐ。
+    const substrateName = layers[layers.length - 1]?.name ?? "基板";
+    return (
+      <SteppedView
+        periodNm={stepped.periodNm}
+        columns={stepped.columns}
+        substrateName={substrateName}
+      />
+    );
   }
   return <PlanarView layers={layers} />;
 }
@@ -34,20 +42,21 @@ export default function StructureView({
 function SteppedView({
   periodNm,
   columns,
+  substrateName,
 }: {
   periodNm: number;
   columns: StructureColumn[];
+  substrateName: string;
 }) {
   // 材料名 → 色。平面モードと同じく膜(上の層)から順に割り当て、基板は最後。
-  // 「基板上げ」は基板と同じ材料なので同じ色にする。
+  // 基板上げの台座は基板と同じ名前なので、自動的に同じ色になる。
   const names = new Set<string>();
   // slabs は下→上の順なので、平面モード(上の層から順)と同じ割り当てになるよう反転して走査する
   for (const c of columns) for (const s of [...c.slabs].reverse()) names.add(s.name);
-  names.delete("基板上げ");
-  names.add("基板");
+  names.delete(substrateName);
+  names.add(substrateName);
   const colorOf = new Map<string, string>();
   [...names].forEach((m, i) => colorOf.set(m, PALETTE[i % PALETTE.length]));
-  colorOf.set("基板上げ", colorOf.get("基板")!);
 
   const maxTop = Math.max(
     ...columns.map((c) => {
@@ -58,7 +67,7 @@ function SteppedView({
   const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
 
   const shapes: Partial<Shape>[] = [
-    rect(0, 0, periodNm, subH, colorOf.get("基板")!),
+    rect(0, 0, periodNm, subH, colorOf.get(substrateName)!),
   ];
   for (const c of columns) {
     for (const slab of c.slabs) {
@@ -78,7 +87,7 @@ function SteppedView({
     {
       x: periodNm / 2,
       y: subH / 2,
-      text: "基板",
+      text: substrateName,
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     },
