@@ -205,7 +205,7 @@ export default function Home() {
           {colorsSweep.result && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">反射スペクトル（角度ごとの波長依存性）</CardTitle>
+                <CardTitle className="text-base">反射スペクトル</CardTitle>
               </CardHeader>
               <CardContent>
                 <AngleSpectraChart sweep={colorsSweep.result} />
