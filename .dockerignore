@@ -1,0 +1,20 @@
+.git
+.github
+docs
+memo.md
+dev.sh
+
+# frontend
+frontend/node_modules
+frontend/.next
+frontend/out
+frontend/tsconfig.tsbuildinfo
+
+# backend
+backend/.venv
+backend/.pytest_cache
+backend/.ruff_cache
+backend/scripts/out
+backend/vendor/S4/build
+**/__pycache__
+**/.DS_Store
