@@ -2,10 +2,10 @@
 
 import { Trash2 } from "lucide-react";
 
+import { Field } from "@/components/Field";
 import { NumberInput } from "@/components/NumberInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { EditableLayer } from "@/lib/api/client";
 
 type Props = {
@@ -96,21 +96,6 @@ export function LayerEditor({ layers, onChange }: Props) {
       <Button type="button" variant="outline" onClick={addLayer}>
         + 層を追加
       </Button>
-    </div>
-  );
-}
-
-export function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="grid gap-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
     </div>
   );
 }

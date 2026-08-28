@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Field } from "@/components/LayerEditor";
+import { Field } from "@/components/Field";
 import { NumberInput } from "@/components/NumberInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
