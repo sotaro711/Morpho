@@ -1,7 +1,11 @@
 """FastAPI アプリケーションの組み立て。"""
 
+import os
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from s4web.presentation.api.simulation_router import router as simulation_router
 
@@ -22,6 +26,12 @@ def create_app() -> FastAPI:
     @app.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    # S4WEB_STATIC_DIR にフロントのビルド成果物があれば配信する(本番コンテナ用)。
+    # /api/* のルートが優先され、それ以外のパスが静的ファイルに割り当てられる。
+    static_dir = os.environ.get("S4WEB_STATIC_DIR")
+    if static_dir and Path(static_dir).is_dir():
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")
 
     return app
 
