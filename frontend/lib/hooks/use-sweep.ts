@@ -24,6 +24,7 @@ export function useSweep() {
   const run = async (body: SweepRequest) => {
     setLoading(true);
     setError(null);
+    setResult(null);
     try {
       setResult(await simulateSweep(body));
     } catch (e) {
