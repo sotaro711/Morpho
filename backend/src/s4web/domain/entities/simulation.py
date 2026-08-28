@@ -14,6 +14,11 @@ class Polarization(StrEnum):
     P = "p"
 
 
+# 基底数の上限。GUI の最大回折次数 ±30（2*30+1 = 61）に対応する。
+# これ以上は計算時間（基底数のほぼ 3 乗）が実用範囲を超えるため受け付けない。
+NUM_BASIS_LIMIT = 61
+
+
 @dataclass(frozen=True)
 class SimulationCondition:
     """多層膜シミュレーションの完全な指定。
@@ -53,8 +58,10 @@ class SimulationCondition:
             raise ValueError("theta_deg must be in (-90, 90)")
         if len(self.layers) < 2:
             raise ValueError("at least two layers are required (incident + substrate)")
-        if self.num_basis < 1:
-            raise ValueError(f"num_basis must be >= 1, got {self.num_basis}")
+        if not (1 <= self.num_basis <= NUM_BASIS_LIMIT):
+            raise ValueError(
+                f"num_basis must be in [1, {NUM_BASIS_LIMIT}], got {self.num_basis}"
+            )
         if self.explicit_wavelengths_nm is not None:
             if len(self.explicit_wavelengths_nm) == 0:
                 raise ValueError("explicit_wavelengths_nm must not be empty")
