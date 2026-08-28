@@ -183,7 +183,7 @@ export default function Home() {
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {colorsSweep.loading
-                    ? "計算中…（段付き構造では数分かかります）"
+                    ? "計算中…"
                     : "「計算する」を押すと結果が表示されます。"}
                 </p>
               )}
