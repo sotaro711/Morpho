@@ -59,9 +59,7 @@ class SimulationCondition:
         if len(self.layers) < 2:
             raise ValueError("at least two layers are required (incident + substrate)")
         if not (1 <= self.num_basis <= NUM_BASIS_LIMIT):
-            raise ValueError(
-                f"num_basis must be in [1, {NUM_BASIS_LIMIT}], got {self.num_basis}"
-            )
+            raise ValueError(f"num_basis must be in [1, {NUM_BASIS_LIMIT}], got {self.num_basis}")
         if self.explicit_wavelengths_nm is not None:
             if len(self.explicit_wavelengths_nm) == 0:
                 raise ValueError("explicit_wavelengths_nm must not be empty")
