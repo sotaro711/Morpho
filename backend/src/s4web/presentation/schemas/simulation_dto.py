@@ -66,7 +66,7 @@ class SimulationRequest(_CamelModel):
     layers: list[LayerDTO] = Field(min_length=2)
     # 面内パターンを使う場合のみ指定する（平面多層膜では省略 = 従来どおり）。
     period_nm: float | None = None
-    num_basis: int = Field(ge=1, default=1)
+    num_basis: int = Field(ge=1, le=61, default=1)
     # 等間隔で表せない波長サンプル用の明示リスト（昇順）。指定時は
     # wlMin / wlMax / wlPoints を使わず、このリストの波長だけを計算する。
     wavelengths_nm: list[float] | None = Field(default=None, min_length=1, max_length=2001)

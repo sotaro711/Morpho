@@ -26,20 +26,27 @@ import { toSimulationRequest } from "@/lib/stack";
 export type StepBlock = { id: string; widthNm: number; raised: boolean };
 
 /** 段差の設定。blocks が空 = 段差なし = 平面多層膜。 */
-export type SteppedConfig = { raiseNm: number; blocks: StepBlock[] };
+export type SteppedConfig = {
+  raiseNm: number;
+  blocks: StepBlock[];
+  /** 最大回折次数 M（m = -M〜+M を計算に含める）。基底数は 2M+1。 */
+  maxOrder: number;
+};
+
+/**
+ * 最大回折次数の既定値（基底数 23）と UI で許す上限。
+ * M=11 は参照構造(900/300 ブロック・TiO2/SiO2 7 ペア)で M=30 との差が
+ * 全点 ≤0.03 に収まることを確認済み。計算量は基底数のほぼ 3 乗なので
+ * M=30 比で約 18 倍速い。より細かいパターンで収束が怪しいときは UI で上げる。
+ */
+export const DEFAULT_MAX_ORDER = 11;
+export const MAX_ORDER_LIMIT = 30;
 
 export const DEFAULT_STEPPED: SteppedConfig = {
   raiseNm: 235, // 研究の設計値 λ0/2（λ0 = 470nm）
   blocks: [],
+  maxOrder: DEFAULT_MAX_ORDER,
 };
-
-/**
- * 段付き計算の基底数（m = -11〜+11 の 23 個）。
- * 参照構造(900/300 ブロック・TiO2/SiO2 7 ペア)で 61 との差が全点 ≤0.03 に
- * 収まることを確認済み。計算量は基底数のほぼ 3 乗なので 61 比で約 18 倍速い。
- * より細かいパターンで収束が怪しいときは UI の numBasis で上書きして上げる。
- */
-export const STEPPED_NUM_BASIS = 23;
 
 /** 段差が設定されているか（= 段付き周期構造として計算するか）。 */
 export function isStepped(config: SteppedConfig): boolean {
@@ -154,8 +161,8 @@ export function toSteppedSimulationRequest(
 
   return {
     ...settings,
-    // 基底数はユーザーが明示的に上げていない限り、収束確認済みの既定値に引き上げる
-    numBasis: Math.max(settings.numBasis, STEPPED_NUM_BASIS),
+    // 基底数は最大回折次数から決まる（m = -M〜+M の 2M+1 本）
+    numBasis: 2 * config.maxOrder + 1,
     periodNm: period,
     layers,
   };

@@ -2,7 +2,7 @@
 
 import { NumberInput } from "@/components/NumberInput";
 import { Label } from "@/components/ui/label";
-import type { StepBlock, SteppedConfig } from "@/lib/stepped";
+import { MAX_ORDER_LIMIT, type StepBlock, type SteppedConfig } from "@/lib/stepped";
 
 type Props = {
   value: SteppedConfig;
@@ -43,14 +43,36 @@ export function StepEditor({ value, onChange }: Props) {
 
   return (
     <div className="grid gap-3">
-      <div className="flex items-center gap-2">
-        <Label className="text-xs text-muted-foreground">上げ高さ (nm)</Label>
-        <NumberInput
-          step={1}
-          value={value.raiseNm}
-          onChange={(raiseNm) => patch({ raiseNm })}
-          className="w-24"
-        />
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <div className="flex items-center gap-2">
+          <Label className="text-xs text-muted-foreground">上げ高さ (nm)</Label>
+          <NumberInput
+            step={1}
+            value={value.raiseNm}
+            onChange={(raiseNm) => patch({ raiseNm })}
+            className="w-24"
+          />
+        </div>
+        {value.blocks.length > 0 && (
+          <div
+            className="flex items-center gap-2"
+            title={`計算に含める回折次数の範囲 (±M、最大 ±${MAX_ORDER_LIMIT})。上げると精度が上がるが、計算時間は基底数 2M+1 のほぼ 3 乗で増える`}
+          >
+            <Label className="text-xs text-muted-foreground">回折次数 ±</Label>
+            <NumberInput
+              step={1}
+              min={1}
+              max={MAX_ORDER_LIMIT}
+              value={value.maxOrder}
+              onChange={(v) =>
+                patch({
+                  maxOrder: Math.min(MAX_ORDER_LIMIT, Math.max(1, Math.round(v))),
+                })
+              }
+              className="w-20"
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex items-end gap-1.5 rounded-lg border bg-muted/30 px-3 pb-3 pt-9">
