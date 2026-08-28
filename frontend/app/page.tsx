@@ -72,6 +72,8 @@ export default function Home() {
     const base = toSteppedSimulationRequest(settings, films, substrate, stepped);
     // 直列に実行する: バックエンドは 1 リクエストずつ解くので並列でも速くならず、
     // 待ち行列に入った方がプロキシタイムアウトに達するリスクだけが増えるため。
+    // 2 本目の run が始まるまで前回の角度チャートが残らないよう、先に消しておく。
+    anglesSweep.clear();
     await colorsSweep.run({
       ...base,
       ...COLOR_SWEEP_WL,
@@ -174,7 +176,7 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {(anglesSweep.result || anglesSweep.loading) && (
+          {(anglesSweep.result || loading) && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">角度スイープ</CardTitle>
