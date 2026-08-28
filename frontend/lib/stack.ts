@@ -41,7 +41,7 @@ export const DEFAULT_FILMS: EditableLayer[] = [
   },
 ];
 
-export const DEFAULT_SUBSTRATE: Medium = { name: "基板", n: 1.5, k: 0 }; // ガラス
+export const DEFAULT_SUBSTRATE: Medium = { name: "SUS", n: 1.71, k: 2.88 };
 
 // 入射媒質は空気に固定（光が入ってくる側。UI には出さない）。
 const INCIDENT_AIR: Medium = { name: "空気", n: 1.0, k: 0 };
