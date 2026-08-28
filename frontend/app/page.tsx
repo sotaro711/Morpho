@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { LayerEditor } from "@/components/LayerEditor";
 import { NumberInput } from "@/components/NumberInput";
+import { PairInsertForm } from "@/components/PairInsertForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { StepEditor } from "@/components/StepEditor";
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,18 @@ export default function Home() {
               <div className="border-t pt-3">
                 <MediumRow label="基板" value={substrate} onChange={setSubstrate} />
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">ペアをまとめて挿入</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* 多層膜スタックの一番上（入射側寄り）にまとめて積む */}
+              <PairInsertForm
+                onInsert={(block) => setFilms((prev) => [...block, ...prev])}
+              />
             </CardContent>
           </Card>
 
