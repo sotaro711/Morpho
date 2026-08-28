@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { EditableLayer, SweepResponse } from "@/lib/api/client";
 import { useSweep } from "@/lib/hooks/use-sweep";
@@ -246,8 +247,15 @@ function MediumRow({
   onChange: (v: Medium) => void;
 }) {
   return (
-    <div className="grid grid-cols-[1fr_1fr_1fr] items-end gap-2">
+    <div className="grid grid-cols-[auto_1fr_1fr_1fr] items-end gap-2">
       <span className="pb-2 text-sm font-semibold">{label}</span>
+      <div className="grid gap-1">
+        <Label className="text-xs text-muted-foreground">名前</Label>
+        <Input
+          value={value.name}
+          onChange={(e) => onChange({ ...value, name: e.target.value })}
+        />
+      </div>
       <div className="grid gap-1">
         <Label className="text-xs text-muted-foreground">屈折率 n</Label>
         <NumberInput
