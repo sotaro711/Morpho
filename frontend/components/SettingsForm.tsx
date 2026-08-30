@@ -57,12 +57,6 @@ export function SettingsForm({ value, onChange }: Props) {
         min={1}
         onChange={(v) => onChange({ wlPoints: v })}
       />
-      <NumberField
-        label="入射角 θ (deg)"
-        value={value.thetaDeg}
-        step={1}
-        onChange={(v) => onChange({ thetaDeg: v })}
-      />
       <div className="grid gap-1.5">
         <Label className="text-xs text-muted-foreground">偏光</Label>
         <Select

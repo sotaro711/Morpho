@@ -14,8 +14,11 @@ import type {
   SimulationRequest,
 } from "@/lib/api/client";
 
-/** 計算条件のスカラー部分（層・媒質を除く）。 */
-export type Settings = Omit<SimulationRequest, "layers">;
+/**
+ * 計算条件のスカラー部分（層・媒質を除く）。
+ * 入射角は角度スイープ（thetaDegs）で指定するため UI からは除外する。
+ */
+export type Settings = Omit<SimulationRequest, "layers" | "thetaDeg">;
 
 /** 入射媒質・基板（半無限）の名前と光学定数。 */
 export type Medium = { name: string; n: number; k: number };
@@ -24,7 +27,6 @@ export const DEFAULT_SETTINGS: Settings = {
   wlMin: 380,
   wlMax: 780,
   wlPoints: 81,
-  thetaDeg: 0,
   pol: "s",
   numBasis: 1, // 平面多層膜は 0 次のみで厳密（周期構造対応時に増やす）
 };
@@ -78,5 +80,6 @@ export function toSimulationRequest(
   films: EditableLayer[],
   substrate: Medium,
 ): SimulationRequest {
-  return { ...settings, layers: buildLayers(films, substrate) };
+  // thetaDeg はスキーマ上必須だが、sweep API は thetaDegs のみ参照するため 0 固定
+  return { ...settings, thetaDeg: 0, layers: buildLayers(films, substrate) };
 }

@@ -1,6 +1,9 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
+
 import { NumberInput } from "@/components/NumberInput";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { MAX_ORDER_LIMIT, type StepBlock, type SteppedConfig } from "@/lib/stepped";
 
@@ -54,6 +57,18 @@ export function StepEditor({ value, onChange }: Props) {
           />
         </div>
         {value.blocks.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => patch({ blocks: [] })}
+            className="order-last ml-auto text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 text-destructive/70" />
+            全て削除
+          </Button>
+        )}
+        {value.blocks.length > 0 && (
           <div
             className="flex items-center gap-2"
             title={`計算に含める回折次数の範囲 (±M、最大 ±${MAX_ORDER_LIMIT})。上げると精度が上がるが、計算時間は基底数 2M+1 のほぼ 3 乗で増える`}
@@ -75,7 +90,7 @@ export function StepEditor({ value, onChange }: Props) {
         )}
       </div>
 
-      <div className="flex items-end gap-1.5 rounded-lg border bg-muted/30 px-3 pb-3 pt-9">
+      <div className="flex items-end gap-1.5 overflow-x-auto rounded-lg border bg-muted/30 px-3 pb-3 pt-9">
         {value.blocks.map((b, i) => (
           <div
             key={b.id}
@@ -97,7 +112,11 @@ export function StepEditor({ value, onChange }: Props) {
               type="button"
               onClick={() => removeBlock(i)}
               aria-label={`ブロック${i + 1}を削除`}
-              className="absolute -right-1.5 -top-7 hidden h-5 w-5 items-center justify-center rounded-full border bg-background text-xs leading-none text-muted-foreground shadow-sm group-hover:flex"
+              // 箱の上端に少し重ねて置く（離すとホバーが途切れて押せなくなるため）。
+              // 上げブロックは箱が 20px 上にずれるので × も同じだけ上げる。
+              className={`absolute -right-1.5 z-10 hidden h-5 w-5 items-center justify-center rounded-full border bg-background text-xs leading-none text-muted-foreground shadow-sm group-hover:flex ${
+                b.raised ? "-top-7" : "-top-2"
+              }`}
             >
               ×
             </button>

@@ -161,6 +161,8 @@ export function toSteppedSimulationRequest(
 
   return {
     ...settings,
+    // thetaDeg はスキーマ上必須だが、sweep API は thetaDegs のみ参照するため 0 固定
+    thetaDeg: 0,
     // 基底数は最大回折次数から決まる（m = -M〜+M の 2M+1 本）
     numBasis: 2 * config.maxOrder + 1,
     periodNm: period,
