@@ -75,7 +75,7 @@ export function StepEditor({ value, onChange }: Props) {
         )}
       </div>
 
-      <div className="flex items-end gap-1.5 rounded-lg border bg-muted/30 px-3 pb-3 pt-9">
+      <div className="flex items-end gap-1.5 overflow-x-auto rounded-lg border bg-muted/30 px-3 pb-3 pt-9">
         {value.blocks.map((b, i) => (
           <div
             key={b.id}
