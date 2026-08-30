@@ -1,0 +1,62 @@
+<svg width="1200" height="300" viewBox="0 0 1200 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Morpho - Structural Color Simulator">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1128"/>
+      <stop offset="1" stop-color="#111e45"/>
+    </linearGradient>
+    <radialGradient id="glowL" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#22d3ee" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#22d3ee" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowR" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#a78bfa" stop-opacity="0.3"/>
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="title" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="0.5" stop-color="#818cf8"/>
+      <stop offset="1" stop-color="#c084fc"/>
+    </linearGradient>
+    <!-- 可視光スペクトル 380-780nm -->
+    <linearGradient id="spectrum" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="0.14" stop-color="#6366f1"/>
+      <stop offset="0.28" stop-color="#3b82f6"/>
+      <stop offset="0.42" stop-color="#06b6d4"/>
+      <stop offset="0.56" stop-color="#10b981"/>
+      <stop offset="0.68" stop-color="#a3e635"/>
+      <stop offset="0.8" stop-color="#facc15"/>
+      <stop offset="0.9" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#ef4444"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="300" rx="14" fill="url(#bg)"/>
+  <ellipse cx="180" cy="240" rx="360" ry="200" fill="url(#glowL)"/>
+  <ellipse cx="1040" cy="60" rx="360" ry="200" fill="url(#glowR)"/>
+
+  <!-- 多層薄膜スタック (左) -->
+  <g transform="translate(60,88) rotate(-8)">
+    <rect x="0" y="0" width="190" height="18" rx="9" fill="#c084fc" opacity="0.5"/>
+    <rect x="14" y="30" width="190" height="18" rx="9" fill="#818cf8" opacity="0.45"/>
+    <rect x="0" y="60" width="190" height="18" rx="9" fill="#38bdf8" opacity="0.5"/>
+    <rect x="14" y="90" width="190" height="18" rx="9" fill="#22d3ee" opacity="0.4"/>
+    <rect x="0" y="120" width="190" height="18" rx="9" fill="#67e8f9" opacity="0.3"/>
+  </g>
+
+  <!-- 多層薄膜スタック (右) -->
+  <g transform="translate(950,90) rotate(8)">
+    <rect x="14" y="0" width="190" height="18" rx="9" fill="#67e8f9" opacity="0.5"/>
+    <rect x="0" y="30" width="190" height="18" rx="9" fill="#22d3ee" opacity="0.45"/>
+    <rect x="14" y="60" width="190" height="18" rx="9" fill="#38bdf8" opacity="0.5"/>
+    <rect x="0" y="90" width="190" height="18" rx="9" fill="#818cf8" opacity="0.4"/>
+    <rect x="14" y="120" width="190" height="18" rx="9" fill="#c084fc" opacity="0.3"/>
+  </g>
+
+  <text x="600" y="152" text-anchor="middle" font-family="'SF Pro Display','Segoe UI',Helvetica,Arial,sans-serif" font-size="84" font-weight="700" letter-spacing="2" fill="url(#title)">Morpho</text>
+  <text x="600" y="196" text-anchor="middle" font-family="'SF Pro Display','Segoe UI',Helvetica,Arial,sans-serif" font-size="16" font-weight="500" letter-spacing="7" fill="#94a3b8">STRUCTURAL COLOR SIMULATOR</text>
+
+  <text x="428" y="234" text-anchor="end" font-family="'SF Mono',Menlo,Consolas,monospace" font-size="12" fill="#64748b">380 nm</text>
+  <rect x="440" y="226" width="320" height="7" rx="3.5" fill="url(#spectrum)"/>
+  <text x="772" y="234" text-anchor="start" font-family="'SF Mono',Menlo,Consolas,monospace" font-size="12" fill="#64748b">780 nm</text>
+</svg>
