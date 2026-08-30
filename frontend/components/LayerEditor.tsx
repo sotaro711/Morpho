@@ -39,9 +39,21 @@ export function LayerEditor({ layers, onChange }: Props) {
 
   return (
     <div className="grid gap-3">
-      <Button type="button" variant="outline" onClick={addLayer}>
-        + 層を追加
-      </Button>
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" onClick={addLayer} className="flex-1">
+          + 層を追加
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={layers.length === 0}
+          onClick={() => onChange([])}
+          className="text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="h-4 w-4 text-destructive/70" />
+          全て削除
+        </Button>
+      </div>
 
       <div className="grid max-h-[55vh] gap-3 overflow-y-auto pr-1">
         {layers.length === 0 && (
