@@ -142,17 +142,20 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          <Button onClick={runSimulation} disabled={loading} className="w-full">
-            {loading ? "計算中…" : "計算する"}
-          </Button>
-          {error && (
-            <div
-              role="alert"
-              className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-            >
-              エラー: {error}
-            </div>
-          )}
+          {/* 層を増やして左カラムが長くなってもスクロールせずに押せるよう、画面下端に追従させる */}
+          <div className="sticky bottom-0 z-10 grid gap-3 border-t bg-background/85 py-3 backdrop-blur">
+            <Button onClick={runSimulation} disabled={loading} className="w-full">
+              {loading ? "計算中…" : "計算する"}
+            </Button>
+            {error && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+              >
+                エラー: {error}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* 右：構造の断面図（常時）とスペクトル（計算後）。スクロール追従させる。 */}
