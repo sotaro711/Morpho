@@ -17,6 +17,27 @@ const PALETTE = [
 // 平面多層膜には面内の周期が無いので、断面図の横幅は表示用の公称値を使う。
 const DISPLAY_WIDTH = 100;
 
+type Optical = { n: number; k: number };
+
+// 色分けのキー。名前ではなく光学定数で分けることで、同じ材料のつもりで
+// n や k を打ち間違えた層が別色になり、入力ミスに気づけるようにする(#33)。
+function materialKey({ n, k }: Optical): string {
+  return `${n}|${k}`;
+}
+
+// 出現順にパレットを割り当てる。キーの重複は最初の出現位置を優先する。
+function assignColors(keys: Iterable<string>): Map<string, string> {
+  const colorOf = new Map<string, string>();
+  for (const key of keys) {
+    if (!colorOf.has(key)) colorOf.set(key, PALETTE[colorOf.size % PALETTE.length]);
+  }
+  return colorOf;
+}
+
+function formatIndex({ n, k }: Optical): string {
+  return k > 0 ? `n=${n}, k=${k}` : `n=${n}`;
+}
+
 export default function StructureView({
   layers,
   stepped,
@@ -25,13 +46,13 @@ export default function StructureView({
   stepped?: { periodNm: number; columns: StructureColumn[] };
 }) {
   if (stepped && stepped.columns.length > 0) {
-    // 基板は layers の末尾（structureLayers の規約）。名前を段付き表示にも引き継ぐ。
-    const substrateName = layers[layers.length - 1]?.name ?? "基板";
+    // 基板は layers の末尾（structureLayers の規約）。段付き表示にも引き継ぐ。
+    const substrate = layers[layers.length - 1] ?? { name: "基板", n: 1, k: 0 };
     return (
       <SteppedView
         periodNm={stepped.periodNm}
         columns={stepped.columns}
-        substrateName={substrateName}
+        substrate={substrate}
       />
     );
   }
@@ -42,21 +63,25 @@ export default function StructureView({
 function SteppedView({
   periodNm,
   columns,
-  substrateName,
+  substrate,
 }: {
   periodNm: number;
   columns: StructureColumn[];
-  substrateName: string;
+  substrate: Optical & { name: string };
 }) {
-  // 材料名 → 色。平面モードと同じく膜(上の層)から順に割り当て、基板は最後。
-  // 基板上げの台座は基板と同じ名前なので、自動的に同じ色になる。
-  const names = new Set<string>();
+  // 光学定数 → 色。平面モードと同じく膜(上の層)から順に割り当て、基板は最後。
+  // 基板上げの台座は基板と同じ光学定数なので、自動的に同じ色になる。
+  const substrateKey = materialKey(substrate);
+  const keys: string[] = [];
   // slabs は下→上の順なので、平面モード(上の層から順)と同じ割り当てになるよう反転して走査する
-  for (const c of columns) for (const s of [...c.slabs].reverse()) names.add(s.name);
-  names.delete(substrateName);
-  names.add(substrateName);
-  const colorOf = new Map<string, string>();
-  [...names].forEach((m, i) => colorOf.set(m, PALETTE[i % PALETTE.length]));
+  for (const c of columns) {
+    for (const s of [...c.slabs].reverse()) {
+      const key = materialKey(s);
+      if (key !== substrateKey) keys.push(key);
+    }
+  }
+  keys.push(substrateKey);
+  const colorOf = assignColors(keys);
 
   const maxTop = Math.max(
     ...columns.map((c) => {
@@ -67,7 +92,7 @@ function SteppedView({
   const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
 
   const shapes: Partial<Shape>[] = [
-    rect(0, 0, periodNm, subH, colorOf.get(substrateName)!),
+    rect(0, 0, periodNm, subH, colorOf.get(substrateKey)!),
   ];
   for (const c of columns) {
     for (const slab of c.slabs) {
@@ -77,7 +102,7 @@ function SteppedView({
           subH + slab.zNm,
           c.xNm + c.widthNm,
           subH + slab.zNm + slab.thicknessNm,
-          colorOf.get(slab.name) ?? "#cccccc",
+          colorOf.get(materialKey(slab)) ?? "#cccccc",
         ),
       );
     }
@@ -87,7 +112,7 @@ function SteppedView({
     {
       x: periodNm / 2,
       y: subH / 2,
-      text: substrateName,
+      text: `${substrate.name} (${formatIndex(substrate)})`,
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     },
@@ -123,13 +148,7 @@ function SteppedView({
 
 /** 平面モード: 従来どおり全層を横幅いっぱいの帯として描く。 */
 function PlanarView({ layers }: { layers: LayerDTO[] }) {
-  // 材料名 → 色 のマップ。
-  const materials = new Set<string>();
-  for (const l of layers) {
-    materials.add(l.name);
-  }
-  const colorOf = new Map<string, string>();
-  [...materials].forEach((m, i) => colorOf.set(m, PALETTE[i % PALETTE.length]));
+  const colorOf = assignColors(layers.map(materialKey));
 
   // 表示用の各層の高さ。半無限層（厚さ0）には名目高さを与える。
   const finiteSum = layers.reduce((s, l) => s + (l.thicknessNm > 0 ? l.thicknessNm : 0), 0);
@@ -146,14 +165,14 @@ function PlanarView({ layers }: { layers: LayerDTO[] }) {
     const h = dispH(layer);
     const y0 = top - h;
     const y1 = top;
-    const bg = colorOf.get(layer.name) ?? "#cccccc";
+    const bg = colorOf.get(materialKey(layer)) ?? "#cccccc";
 
     shapes.push(rect(0, y0, DISPLAY_WIDTH, y1, bg));
 
     annotations.push({
       x: DISPLAY_WIDTH / 2,
       y: (y0 + y1) / 2,
-      text: `${layer.name}${layer.thicknessNm > 0 ? ` (${layer.thicknessNm}nm)` : ""}`,
+      text: `${layer.name} (${layer.thicknessNm > 0 ? `${layer.thicknessNm}nm, ` : ""}${formatIndex(layer)})`,
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     });
