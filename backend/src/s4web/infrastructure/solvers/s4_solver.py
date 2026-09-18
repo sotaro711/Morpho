@@ -3,6 +3,7 @@
 S4 の C 拡張に依存する唯一の場所。domain / application はこのモジュールを知らない。
 SimulationCondition を S4 の API 呼び出しに変換し、波長を掃引して R/T を得る。
 R/T は回折 0 次（正反射・直進透過）の成分（詳細は _solve_at の docstring）。
+反射は全次数の合計も併せて返す（0 次以外 = 合計 − 0 次 は domain 側で取り出す）。
 
 単位: domain は nm。S4 は無次元（長さの単位を1つ選んで一貫すればよい）なので、
 内部では μm に統一する（厚さ・波長・周期をすべて μm に換算）。
@@ -55,25 +56,28 @@ class S4Solver(SolverPort):
         wls = condition.wavelengths_nm()
         reflectance: list[float] = []
         transmittance: list[float] = []
+        reflectance_total: list[float] = []
         for wl_nm in wls:
-            r, t = _solve_at(sim, top_name, bottom_name, wl_nm)
+            r, t, r_total = _solve_at(sim, top_name, bottom_name, wl_nm)
             if condition.is_patterned and _is_anomalous(r, t):
                 # Rayleigh 点（回折次数の出没する特異波長）では固有値計算が縮退して
                 # NaN や発散が出る。波長を微小にずらして解き直す。
                 for shift in _WL_SHIFTS_NM:
-                    r, t = _solve_at(sim, top_name, bottom_name, wl_nm + shift)
+                    r, t, r_total = _solve_at(sim, top_name, bottom_name, wl_nm + shift)
                     if not _is_anomalous(r, t):
                         break
                 else:
                     # 回復不能な点は 0 埋め（colorimetry 側の NaN→0 と同じ最終防波堤）。
-                    r, t = 0.0, 0.0
+                    r, t, r_total = 0.0, 0.0, 0.0
             reflectance.append(r)
             transmittance.append(t)
+            reflectance_total.append(r_total)
 
         return Spectrum(
             wavelengths_nm=tuple(wls),
             reflectance=tuple(reflectance),
             transmittance=tuple(transmittance),
+            reflectance_total=tuple(reflectance_total),
         )
 
     def solve_orders(self, condition: SimulationCondition) -> tuple[AngularDistribution, ...]:
@@ -166,8 +170,8 @@ class S4Solver(SolverPort):
         return sim
 
 
-def _solve_at(sim, top_name: str, bottom_name: str, wl_nm: float) -> tuple[float, float]:
-    """1 波長を解いて 0 次（正反射・直進透過）の (反射率, 透過率) を返す。
+def _solve_at(sim, top_name: str, bottom_name: str, wl_nm: float) -> tuple[float, float, float]:
+    """1 波長を解いて (0 次反射率, 0 次透過率, 全次数の反射率) を返す。
 
     波長（周波数 = 1/λ）を設定した時点で S4 はその波長について RCWA を解く:
     各層を固有モードに分解（SolveLayerEigensystem）し、層間を散乱行列（S 行列）で
@@ -177,6 +181,8 @@ def _solve_at(sim, top_name: str, bottom_name: str, wl_nm: float) -> tuple[float
     観測者が正反射方向で見る量は m = 0 成分なので、それを反射率とする
     （全次数の合計は「反射側に戻った総エネルギー」であり、見え方とは別の量）。
     平面多層膜は次数が (0,0) の 1 つだけなので従来の全パワー計算と一致する。
+    全次数の反射率は「反射側に戻った総エネルギー」として別に返し、0 次以外
+    （高次回折光）の量は呼び出し側で 合計 − 0 次 として求める。
     """
     wl_um = wl_nm / _NM_PER_UM
     sim.SetFrequency(1.0 / wl_um)
@@ -188,15 +194,15 @@ def _solve_at(sim, top_name: str, bottom_name: str, wl_nm: float) -> tuple[float
     # 入射波は 0 次のみだが、規格化は前進波の合計で行う（_orders_at と同じ規約）。
     incident = sum(f.real for f, _ in fluxes_top)
     if incident == 0.0:
-        return 0.0, 0.0
+        return 0.0, 0.0, 0.0
     # Rayleigh 点の発散は高次側に出て 0 次だけ正常に見えることがあるため、
-    # 異常検出用に全次数の合計も返す（呼び出し側の _is_anomalous 判定用）。
+    # 全次数の合計が異常ならそれを返して呼び出し側の _is_anomalous に検出させる。
     total_r = sum(-b.real for _, b in fluxes_top) / incident
     total_t = sum(f.real for f, _ in fluxes_bot) / incident
     if _is_anomalous(total_r, total_t):
-        return total_r, total_t
+        return total_r, total_t, total_r
     # 入射層の後退波 = 反射、基板層の前進波 = 透過。入射パワーで規格化。
-    return -fluxes_top[i0][1].real / incident, fluxes_bot[i0][0].real / incident
+    return -fluxes_top[i0][1].real / incident, fluxes_bot[i0][0].real / incident, total_r
 
 
 def _orders_at(
