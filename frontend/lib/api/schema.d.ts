@@ -104,6 +104,27 @@ export interface components {
             hex: string;
         };
         /**
+         * DiffractionModeDTO
+         * @description 回折次数で分けた 1 つの見方（0 次以外 or 全次数）のスペクトルと色。
+         */
+        DiffractionModeDTO: {
+            /** R */
+            R: number[];
+            color?: components["schemas"]["ColorDTO"] | null;
+        };
+        /**
+         * DiffractionModesDTO
+         * @description 反射率を回折次数で分けたもの。0 次（正反射）は親の R / color。
+         *
+         *     non_zeroth は m ≠ 0 の合計（正反射以外の方向へ散った回折光）、total は
+         *     全次数の合計。別方向へ出る光の足し算なので R = total − non_zeroth が成り立つ。
+         *     平面多層膜には m ≠ 0 が無いので non_zeroth は 0、total は R に一致する。
+         */
+        DiffractionModesDTO: {
+            nonZeroth: components["schemas"]["DiffractionModeDTO"];
+            total: components["schemas"]["DiffractionModeDTO"];
+        };
+        /**
          * DiffractionOrderDTO
          * @description 1 つの回折次数への反射パワーの配分。
          */
@@ -203,6 +224,7 @@ export interface components {
             /** T */
             T: number[];
             reflectedColor: components["schemas"]["ColorDTO"];
+            diffraction?: components["schemas"]["DiffractionModesDTO"] | null;
         };
         /**
          * SweepEntryDTO
@@ -216,6 +238,7 @@ export interface components {
             /** T */
             T: number[];
             color?: components["schemas"]["ColorDTO"] | null;
+            diffraction?: components["schemas"]["DiffractionModesDTO"] | null;
         };
         /**
          * SweepRequest

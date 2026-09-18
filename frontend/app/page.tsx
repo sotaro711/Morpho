@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
+import { DiffractionModeToggle } from "@/components/DiffractionModeToggle";
 import { LayerEditor } from "@/components/LayerEditor";
 import { NumberInput } from "@/components/NumberInput";
 import { PairInsertForm } from "@/components/PairInsertForm";
@@ -18,6 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { EditableLayer, SweepResponse } from "@/lib/api/client";
+import {
+  entryColor,
+  hasDiffractionModes,
+  type DiffractionMode,
+} from "@/lib/diffraction";
 import { useSweep } from "@/lib/hooks/use-sweep";
 import {
   DEFAULT_FILMS,
@@ -61,6 +67,8 @@ export default function Home() {
   const [substrate, setSubstrate] = useState<Medium>(DEFAULT_SUBSTRATE);
   const [films, setFilms] = useState<EditableLayer[]>(DEFAULT_FILMS);
   const [stepped, setStepped] = useState<SteppedConfig>(DEFAULT_STEPPED);
+  // 表示する回折次数の見方（0次のみ / 0次以外 / 全次数）。表示だけの切替で再計算はしない。
+  const [mode, setMode] = useState<DiffractionMode>("zeroth");
   const colorsSweep = useSweep(); // 色チップ + 角度別スペクトル
   const anglesSweep = useSweep(); // 角度スイープチャート
   const loading = colorsSweep.loading || anglesSweep.loading;
@@ -176,13 +184,21 @@ export default function Home() {
             </CardContent>
           </Card>
 
+          {hasDiffractionModes(colorsSweep.result) && (
+            <Card>
+              <CardContent>
+                <DiffractionModeToggle value={mode} onChange={setMode} />
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">見た目の色</CardTitle>
             </CardHeader>
             <CardContent>
               {colorsSweep.result ? (
-                <AngleColorChips sweep={colorsSweep.result} />
+                <AngleColorChips sweep={colorsSweep.result} mode={mode} />
               ) : (
                 <p className="text-sm text-muted-foreground">
                   {colorsSweep.loading
@@ -200,7 +216,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 {anglesSweep.result ? (
-                  <AngleSweepChart sweep={anglesSweep.result} />
+                  <AngleSweepChart sweep={anglesSweep.result} mode={mode} />
                 ) : (
                   <p className="text-sm text-muted-foreground">計算中…</p>
                 )}
@@ -215,7 +231,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 {colorsSweep.result ? (
-                  <AngleSpectraChart sweep={colorsSweep.result} />
+                  <AngleSpectraChart sweep={colorsSweep.result} mode={mode} />
                 ) : (
                   <p className="text-sm text-muted-foreground">計算中…</p>
                 )}
@@ -229,19 +245,28 @@ export default function Home() {
 }
 
 /** 入射角ごとの見た目の色チップ(研究スライド上段の形式)。 */
-function AngleColorChips({ sweep }: { sweep: SweepResponse }) {
+function AngleColorChips({
+  sweep,
+  mode,
+}: {
+  sweep: SweepResponse;
+  mode: DiffractionMode;
+}) {
   return (
     <div className="flex justify-center gap-8">
-      {sweep.entries.map((e) => (
-        <div key={e.thetaDeg} className="grid justify-items-center gap-1.5">
-          <span className="text-sm font-semibold">{Math.round(e.thetaDeg)}°</span>
-          <div
-            className="h-16 w-16 rounded-md border"
-            style={{ backgroundColor: e.color?.hex }}
-          />
-          <span className="text-xs text-muted-foreground">{e.color?.hex}</span>
-        </div>
-      ))}
+      {sweep.entries.map((e) => {
+        const color = entryColor(e, mode);
+        return (
+          <div key={e.thetaDeg} className="grid justify-items-center gap-1.5">
+            <span className="text-sm font-semibold">{Math.round(e.thetaDeg)}°</span>
+            <div
+              className="h-16 w-16 rounded-md border"
+              style={{ backgroundColor: color?.hex }}
+            />
+            <span className="text-xs text-muted-foreground">{color?.hex}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

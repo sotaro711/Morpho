@@ -14,6 +14,22 @@ class Polarization(StrEnum):
     P = "p"
 
 
+class DiffractionMode(StrEnum):
+    """反射光を回折次数で分けたときの見方。
+
+    面内周期構造では反射光が回折次数 m = 0, ±1, ±2, … の方向に分かれる。
+    ZEROTH は m = 0（正反射方向）だけ、NON_ZEROTH は m ≠ 0 の合計（正反射以外の
+    方向へ散った回折光）、TOTAL は全次数の合計（反射側に戻った総エネルギー）。
+    次数ごとのパワーは別方向へ出る光なので、こちらは強度の単純和が成り立つ
+    （TOTAL = ZEROTH + NON_ZEROTH）。平面多層膜には m ≠ 0 が存在しないので
+    NON_ZEROTH は 0、TOTAL は ZEROTH に一致する。
+    """
+
+    ZEROTH = "zeroth"
+    NON_ZEROTH = "non_zeroth"
+    TOTAL = "total"
+
+
 # 基底数の上限。GUI の最大回折次数 ±30（2*30+1 = 61）に対応する。
 # これ以上は計算時間（基底数のほぼ 3 乗）が実用範囲を超えるため受け付けない。
 NUM_BASIS_LIMIT = 61
@@ -111,27 +127,52 @@ class SimulationCondition:
 class Spectrum:
     """反射率 / 透過率スペクトル。各配列は波長ごとに 1 値。
 
-    反射率・透過率は回折 0 次（正反射・直進透過）の成分。面内パターンを持つ
-    構造では高次回折光は含まない（観測者が正反射方向で見る量に合わせる）。
-    平面多層膜では回折が無いので全反射率と同じ。
+    reflectance・transmittance は回折 0 次（正反射・直進透過）の成分。面内パターンを
+    持つ構造では高次回折光は含まない（観測者が正反射方向で見る量に合わせる）。
+    reflectance_total は全次数の合計。平面多層膜では回折が無いので両者は一致する。
+    0 次以外（高次回折光の合計）は差分として reflectance_for で取り出す。
     """
 
     wavelengths_nm: tuple[float, ...]
     reflectance: tuple[float, ...]
     transmittance: tuple[float, ...]
+    reflectance_total: tuple[float, ...] | None = None
 
     def __post_init__(self) -> None:
         n = len(self.wavelengths_nm)
         if len(self.reflectance) != n or len(self.transmittance) != n:
             raise ValueError("wavelengths, reflectance, transmittance must have equal length")
+        if self.reflectance_total is not None and len(self.reflectance_total) != n:
+            raise ValueError("reflectance_total must have the same length as wavelengths")
+
+    def reflectance_for(self, mode: DiffractionMode) -> tuple[float, ...]:
+        """指定した見方での反射率。全次数の情報が無いスペクトルで 0 次以外を求めると ValueError。"""
+        if mode is DiffractionMode.ZEROTH:
+            return self.reflectance
+        if self.reflectance_total is None:
+            raise ValueError("spectrum has no total reflectance")
+        if mode is DiffractionMode.TOTAL:
+            return self.reflectance_total
+        # 0 次以外 = 全次数 − 0 次。数値誤差で僅かに負になり得るので 0 で切る。
+        return tuple(
+            max(total - zeroth, 0.0)
+            for total, zeroth in zip(self.reflectance_total, self.reflectance, strict=True)
+        )
 
 
 @dataclass(frozen=True)
 class SimulationOutcome:
-    """シミュレーション結果一式（スペクトル + 反射色）。"""
+    """シミュレーション結果一式（スペクトル + 反射色）。
+
+    reflected_color は 0 次（正反射）の色。non_zeroth_color / total_color は
+    0 次以外 / 全次数の反射スペクトルから求めた色で、スペクトルが全次数の
+    情報を持たない場合は None。
+    """
 
     spectrum: Spectrum
     reflected_color: ColorResult
+    non_zeroth_color: ColorResult | None = None
+    total_color: ColorResult | None = None
 
 
 @dataclass(frozen=True)
@@ -139,9 +180,12 @@ class AngleSweepEntry:
     """入射角スイープの 1 角度分の結果。
 
     reflected_color は色変換を省略した場合（波長間隔が色変換に適さない粗い
-    掃引など）に None になる。
+    掃引など）に None になる。non_zeroth_color / total_color も同様で、さらに
+    スペクトルが全次数の情報を持たない場合にも None。
     """
 
     theta_deg: float
     spectrum: Spectrum
     reflected_color: ColorResult | None
+    non_zeroth_color: ColorResult | None = None
+    total_color: ColorResult | None = None
