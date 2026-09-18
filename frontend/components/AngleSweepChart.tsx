@@ -2,6 +2,11 @@
 
 import Plot from "@/components/Plot";
 import type { SweepResponse } from "@/lib/api/client";
+import {
+  entryReflectance,
+  reflectanceAxisLabel,
+  type DiffractionMode,
+} from "@/lib/diffraction";
 
 /** 折れ線の色。おおまかに「その波長が単色光として見える色」に寄せる(スライドの配色)。 */
 export function wavelengthColor(wlNm: number): string {
@@ -16,12 +21,18 @@ export function wavelengthColor(wlNm: number): string {
  * 角度スイープチャート(研究スライド上段の形式)。
  * 波長ごとに 1 本の折れ線(x = 入射角、y = その波長の全反射率)。
  */
-export default function AngleSweepChart({ sweep }: { sweep: SweepResponse }) {
+export default function AngleSweepChart({
+  sweep,
+  mode = "zeroth",
+}: {
+  sweep: SweepResponse;
+  mode?: DiffractionMode;
+}) {
   return (
     <Plot
       data={sweep.wavelengths.map((wl, wi) => ({
         x: sweep.entries.map((e) => e.thetaDeg),
-        y: sweep.entries.map((e) => e.R[wi]),
+        y: sweep.entries.map((e) => entryReflectance(e, mode)[wi]),
         name: `${Math.round(wl)} nm`,
         type: "scatter" as const,
         mode: "lines" as const,
@@ -32,7 +43,7 @@ export default function AngleSweepChart({ sweep }: { sweep: SweepResponse }) {
         height: 360,
         margin: { l: 56, r: 16, t: 16, b: 48 },
         xaxis: { title: { text: "入射角 (deg)" }, range: [-85, 85], dtick: 20 },
-        yaxis: { title: { text: "反射率 R" }, range: [0, 1] },
+        yaxis: { title: { text: reflectanceAxisLabel(mode) }, range: [0, 1] },
         legend: { orientation: "h", y: -0.25 },
       }}
       useResizeHandler
