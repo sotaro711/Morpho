@@ -1,6 +1,10 @@
 """シミュレーション実行ユースケース。"""
 
-from s4web.domain.entities.simulation import SimulationCondition, SimulationOutcome
+from s4web.domain.entities.simulation import (
+    DiffractionMode,
+    SimulationCondition,
+    SimulationOutcome,
+)
 from s4web.domain.ports.colorimetry_port import ColorimetryPort
 from s4web.domain.ports.solver_port import SolverPort
 
@@ -20,7 +24,17 @@ class RunSimulationUseCase:
                 f"({len(spectrum.wavelengths_nm)}) does not match the "
                 f"requested wl_points ({condition.wl_points})"
             )
-        reflected_color = self._colorimetry.reflectance_to_srgb(
-            spectrum.wavelengths_nm, spectrum.reflectance
+        wls = spectrum.wavelengths_nm
+        reflected_color = self._colorimetry.reflectance_to_srgb(wls, spectrum.reflectance)
+        if spectrum.reflectance_total is None:
+            return SimulationOutcome(spectrum=spectrum, reflected_color=reflected_color)
+        return SimulationOutcome(
+            spectrum=spectrum,
+            reflected_color=reflected_color,
+            non_zeroth_color=self._colorimetry.reflectance_to_srgb(
+                wls, spectrum.reflectance_for(DiffractionMode.NON_ZEROTH)
+            ),
+            total_color=self._colorimetry.reflectance_to_srgb(
+                wls, spectrum.reflectance_for(DiffractionMode.TOTAL)
+            ),
         )
-        return SimulationOutcome(spectrum=spectrum, reflected_color=reflected_color)

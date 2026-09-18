@@ -196,6 +196,50 @@
         ],
         "title": "ColorDTO"
       },
+      "DiffractionModeDTO": {
+        "properties": {
+          "R": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "R"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ColorDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "R"
+        ],
+        "title": "DiffractionModeDTO",
+        "description": "回折次数で分けた 1 つの見方（0 次以外 or 全次数）のスペクトルと色。"
+      },
+      "DiffractionModesDTO": {
+        "properties": {
+          "nonZeroth": {
+            "$ref": "#/components/schemas/DiffractionModeDTO"
+          },
+          "total": {
+            "$ref": "#/components/schemas/DiffractionModeDTO"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nonZeroth",
+          "total"
+        ],
+        "title": "DiffractionModesDTO",
+        "description": "反射率を回折次数で分けたもの。0 次（正反射）は親の R / color。\n\nnon_zeroth は m ≠ 0 の合計（正反射以外の方向へ散った回折光）、total は\n全次数の合計。別方向へ出る光の足し算なので R = total − non_zeroth が成り立つ。\n平面多層膜には m ≠ 0 が無いので non_zeroth は 0、total は R に一致する。"
+      },
       "DiffractionOrderDTO": {
         "properties": {
           "order": {
@@ -370,6 +414,7 @@
           },
           "numBasis": {
             "type": "integer",
+            "maximum": 61.0,
             "minimum": 1.0,
             "title": "Numbasis",
             "default": 1
@@ -425,6 +470,16 @@
           },
           "reflectedColor": {
             "$ref": "#/components/schemas/ColorDTO"
+          },
+          "diffraction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiffractionModesDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -460,6 +515,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ColorDTO"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "diffraction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiffractionModesDTO"
               },
               {
                 "type": "null"
@@ -523,6 +588,7 @@
           },
           "numBasis": {
             "type": "integer",
+            "maximum": 61.0,
             "minimum": 1.0,
             "title": "Numbasis",
             "default": 1

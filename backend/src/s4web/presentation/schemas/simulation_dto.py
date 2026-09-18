@@ -15,9 +15,11 @@ from s4web.domain.entities.layer import Layer, Region
 from s4web.domain.entities.material import Material
 from s4web.domain.entities.simulation import (
     AngleSweepEntry,
+    DiffractionMode,
     Polarization,
     SimulationCondition,
     SimulationOutcome,
+    Spectrum,
 )
 
 
@@ -96,6 +98,45 @@ class ColorDTO(BaseModel):
     @classmethod
     def from_color(cls, c: ColorResult) -> ColorDTO:
         return cls(r=c.r, g=c.g, b=c.b, hex=c.hex)
+
+
+class DiffractionModeDTO(BaseModel):
+    """回折次数で分けた 1 つの見方（0 次以外 or 全次数）のスペクトルと色。"""
+
+    R: list[float]
+    color: ColorDTO | None = None
+
+
+class DiffractionModesDTO(_CamelModel):
+    """反射率を回折次数で分けたもの。0 次（正反射）は親の R / color。
+
+    non_zeroth は m ≠ 0 の合計（正反射以外の方向へ散った回折光）、total は
+    全次数の合計。別方向へ出る光の足し算なので R = total − non_zeroth が成り立つ。
+    平面多層膜には m ≠ 0 が無いので non_zeroth は 0、total は R に一致する。
+    """
+
+    non_zeroth: DiffractionModeDTO
+    total: DiffractionModeDTO
+
+    @classmethod
+    def from_spectrum(
+        cls,
+        spectrum: Spectrum,
+        non_zeroth_color: ColorResult | None,
+        total_color: ColorResult | None,
+    ) -> DiffractionModesDTO | None:
+        if spectrum.reflectance_total is None:
+            return None
+        return cls(
+            non_zeroth=DiffractionModeDTO(
+                R=list(spectrum.reflectance_for(DiffractionMode.NON_ZEROTH)),
+                color=ColorDTO.from_color(non_zeroth_color) if non_zeroth_color else None,
+            ),
+            total=DiffractionModeDTO(
+                R=list(spectrum.reflectance_for(DiffractionMode.TOTAL)),
+                color=ColorDTO.from_color(total_color) if total_color else None,
+            ),
+        )
 
 
 class DiffractionOrderDTO(_CamelModel):
@@ -184,6 +225,7 @@ class SweepEntryDTO(BaseModel):
     R: list[float]
     T: list[float]
     color: ColorDTO | None = None
+    diffraction: DiffractionModesDTO | None = None
 
     @classmethod
     def from_entry(cls, entry: AngleSweepEntry) -> SweepEntryDTO:
@@ -195,6 +237,9 @@ class SweepEntryDTO(BaseModel):
                 ColorDTO.from_color(entry.reflected_color)
                 if entry.reflected_color is not None
                 else None
+            ),
+            diffraction=DiffractionModesDTO.from_spectrum(
+                entry.spectrum, entry.non_zeroth_color, entry.total_color
             ),
         )
 
@@ -217,6 +262,7 @@ class SimulationResponse(BaseModel):
     R: list[float]
     T: list[float]
     reflected_color: ColorDTO = Field(serialization_alias="reflectedColor")
+    diffraction: DiffractionModesDTO | None = None
 
     @classmethod
     def from_outcome(cls, outcome: SimulationOutcome) -> SimulationResponse:
@@ -225,4 +271,7 @@ class SimulationResponse(BaseModel):
             R=list(outcome.spectrum.reflectance),
             T=list(outcome.spectrum.transmittance),
             reflected_color=ColorDTO.from_color(outcome.reflected_color),
+            diffraction=DiffractionModesDTO.from_spectrum(
+                outcome.spectrum, outcome.non_zeroth_color, outcome.total_color
+            ),
         )
