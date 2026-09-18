@@ -14,6 +14,8 @@ export type Polarization = components["schemas"]["Polarization"];
 export type SweepRequest = components["schemas"]["SweepRequest"];
 export type SweepResponse = components["schemas"]["SweepResponse"];
 export type SweepEntry = components["schemas"]["SweepEntryDTO"];
+export type ColorDTO = components["schemas"]["ColorDTO"];
+export type DiffractionModes = components["schemas"]["DiffractionModesDTO"];
 
 // エディタ内部用：React の安定キーのため id を持つ層。API 送信時に id を外す。
 export type EditableLayer = LayerDTO & { id: string };
