@@ -11,7 +11,7 @@ type Props = {
   onConfirmChange: (value: string) => void;
 };
 
-/** 新しいパスワードと確認用の 2 欄。新規登録とパスワード再設定で使う。 */
+/** 新しいパスワードと確認用の 2 欄。 */
 export function NewPasswordFields({
   password,
   confirm,

@@ -10,8 +10,6 @@ type AuthState = {
   session: Session | null;
   /** 保存済みセッションとメール内リンクの確認が終わるまで true。ログイン画面のちらつき防止に使う。 */
   loading: boolean;
-  /** パスワード再設定メールのリンクから開かれ、新しいパスワードの入力待ちのとき true。 */
-  recovering: boolean;
   /** メール内リンクの検証に失敗したときの文言（期限切れなど）。 */
   linkError: string | null;
 };
@@ -22,7 +20,6 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [recovering, setRecovering] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,10 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 購読直後に INITIAL_SESSION が届くので、初回の確認もこの 1 本で済む。
     // メール内リンクの検証中は、その結果が出るまで読み込み中のままにする。
-    const { data } = supabase.auth.onAuthStateChange((event, next) => {
+    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
-      if (event === "PASSWORD_RECOVERY") setRecovering(true);
-      if (event === "SIGNED_OUT") setRecovering(false);
       if (!linkVerification) setLoading(false);
     });
 
@@ -51,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ session, loading, recovering, linkError }}>
+    <AuthContext.Provider value={{ session, loading, linkError }}>
       {children}
     </AuthContext.Provider>
   );

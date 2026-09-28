@@ -245,10 +245,6 @@ sender_name = "Morpho"
 subject = "【Morpho】メールアドレスの確認"
 content_path = "./supabase/templates/confirmation.html"
 
-[auth.email.template.recovery]
-subject = "【Morpho】パスワードの再設定"
-content_path = "./supabase/templates/recovery.html"
-
 # Uncomment to customize notification email template
 # [auth.email.notification.password_changed]
 # enabled = true

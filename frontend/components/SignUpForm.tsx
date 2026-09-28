@@ -48,7 +48,7 @@ export function SignUpForm({ onSignIn, onSent }: Props) {
     // その場合は identities が空になるので、ここで見分けて案内する。
     if (data.user?.identities?.length === 0) {
       setError(
-        "このメールアドレスは登録済みです。ログインするか、パスワードを再設定してください",
+        "このメールアドレスは登録済みです。ログインしてください。Google で登録した場合は「Google で続ける」からログインできます",
       );
       return;
     }

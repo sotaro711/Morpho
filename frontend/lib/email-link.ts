@@ -3,8 +3,8 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { supabase } from "@/lib/supabase";
 
-// supabase/templates/ のリンクが付ける type。確認メールは email、再設定メールは recovery。
-const LINK_TYPES: EmailOtpType[] = ["email", "recovery"];
+// supabase/templates/ の確認メールのリンクが付ける type。
+const LINK_TYPES: EmailOtpType[] = ["email"];
 
 /** URL にメール内リンクのトークンがあれば取り出し、URL からは消す。 */
 function takeEmailLink(): { tokenHash: string; type: EmailOtpType } | null {

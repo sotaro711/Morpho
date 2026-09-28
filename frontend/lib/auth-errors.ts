@@ -8,7 +8,6 @@ const MESSAGES: Record<string, string> = {
     "メールアドレスの確認が済んでいません。届いた確認メールのリンクを開いてください",
   email_address_invalid: "メールアドレスの形式が正しくありません",
   weak_password: "パスワードが弱すぎます。8 文字以上にしてください",
-  same_password: "今と同じパスワードは使えません",
   otp_expired: "リンクの有効期限が切れています。もう一度メールを送ってください",
   over_request_rate_limit: "試行回数が多すぎます。しばらく待ってから再度お試しください",
   over_email_send_rate_limit:
