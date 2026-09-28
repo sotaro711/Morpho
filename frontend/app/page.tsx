@@ -9,6 +9,7 @@ import { NumberInput } from "@/components/NumberInput";
 import { PairInsertForm } from "@/components/PairInsertForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { StepEditor } from "@/components/StepEditor";
+import { UserMenu } from "@/components/UserMenu";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -103,6 +104,7 @@ export default function Home() {
       <header className="flex items-center gap-3">
         <div className="h-8 w-1.5 rounded-full bg-primary" />
         <h1 className="text-2xl font-bold tracking-tight">🦋 Morpho</h1>
+        <UserMenu />
       </header>
 
       <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(420px,460px)_1fr]">

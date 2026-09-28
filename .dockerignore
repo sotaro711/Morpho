@@ -4,6 +4,9 @@ docs
 memo.md
 dev.sh
 
+# 開発用の環境変数。本番の値はビルド引数と Cloud Run の環境変数で渡す
+**/.env
+
 # frontend
 frontend/node_modules
 frontend/.next

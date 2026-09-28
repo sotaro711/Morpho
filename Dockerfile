@@ -7,6 +7,10 @@ COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
 ENV NEXT_OUTPUT=export
+# Supabase の URL と公開キーは静的ビルドに埋め込むので、ビルド時に --build-arg で渡す。
+# どちらも公開前提の値。未指定だとビルドが明示的なエラーで止まる。
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 # Turbopack はコンテナ内で Google Fonts の取得に失敗するため webpack でビルドする
 RUN npx next build
 
