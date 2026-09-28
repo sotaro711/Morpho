@@ -3,7 +3,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState } from "react";
 
-import { verifyEmailLinkOnce } from "@/lib/email-link";
+import { emailLinkVerification } from "@/lib/email-link";
 import { supabase } from "@/lib/supabase";
 
 type AuthState = {
@@ -23,19 +23,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
-    const linkVerification = verifyEmailLinkOnce();
-
     // 購読直後に INITIAL_SESSION が届くので、初回の確認もこの 1 本で済む。
     // メール内リンクの検証中は、その結果が出るまで読み込み中のままにする。
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
-      if (!linkVerification) setLoading(false);
+      if (!emailLinkVerification) setLoading(false);
     });
 
     let active = true;
-    linkVerification?.then((error) => {
+    emailLinkVerification?.then((result) => {
       if (!active) return;
-      setLinkError(error);
+      if (!result.ok) setLinkError(result.message);
       setLoading(false);
     });
 

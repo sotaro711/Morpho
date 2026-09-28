@@ -1,13 +1,16 @@
-import type { EmailOtpType } from "@supabase/supabase-js";
-
 import { authErrorMessage } from "@/lib/auth-errors";
 import { supabase } from "@/lib/supabase";
 
+/** メール内リンクの検証結果。 */
+export type EmailLinkResult = { ok: true } | { ok: false; message: string };
+
 // supabase/templates/ の確認メールのリンクが付ける type。
-const LINK_TYPES: EmailOtpType[] = ["email"];
+function isSupportedType(type: string): type is "email" {
+  return type === "email";
+}
 
 /** URL にメール内リンクのトークンがあれば取り出し、URL からは消す。 */
-function takeEmailLink(): { tokenHash: string; type: EmailOtpType } | null {
+function takeEmailLink(): { tokenHash: string; type: string } | null {
   const url = new URL(window.location.href);
   const tokenHash = url.searchParams.get("token_hash");
   const type = url.searchParams.get("type");
@@ -17,26 +20,34 @@ function takeEmailLink(): { tokenHash: string; type: EmailOtpType } | null {
   url.searchParams.delete("token_hash");
   url.searchParams.delete("type");
   window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-
-  if (!LINK_TYPES.includes(type as EmailOtpType)) return null;
-  return { tokenHash, type: type as EmailOtpType };
+  return { tokenHash, type };
 }
 
-// 開発時の StrictMode では effect が 2 回走る。トークンは 1 回しか使えないので、
-// 検証はモジュールで 1 度だけ行い、2 回目以降は同じ結果を返す。
-let verification: Promise<string | null> | null = null;
+async function verify(link: { tokenHash: string; type: string }): Promise<EmailLinkResult> {
+  // 黙ってログイン画面に戻すと理由が分からないので、未対応の種類は案内する。
+  // Supabase 側に残っている再設定メール（type=recovery）のリンクもここに来る。
+  if (!isSupportedType(link.type)) {
+    return { ok: false, message: "このリンクには対応していません" };
+  }
+  const { error } = await supabase.auth.verifyOtp({
+    token_hash: link.tokenHash,
+    type: link.type,
+  });
+  return error ? { ok: false, message: authErrorMessage(error) } : { ok: true };
+}
+
+function startVerification(): Promise<EmailLinkResult> | null {
+  const link = takeEmailLink();
+  return link ? verify(link) : null;
+}
 
 /**
- * メール内リンクから開かれていればトークンを検証してログインさせる。
- * リンクから開かれていなければ null。失敗したら画面に出す文言を返す。
+ * メール内リンクから開かれていれば、その検証の結果。開かれていなければ null。
  * 成功時のセッション反映は onAuthStateChange に届く。
+ *
+ * アプリ起動時に 1 度だけ行う初期化なので、effect ではなくモジュールの読み込み時に始める。
+ * トークンは使い捨てで、何度走っても安全な effect の形にはできないため。
+ * サーバー側のビルド時は window がないので何もしない。
  */
-export function verifyEmailLinkOnce(): Promise<string | null> | null {
-  if (verification) return verification;
-  const link = takeEmailLink();
-  if (!link) return null;
-  verification = supabase.auth
-    .verifyOtp({ token_hash: link.tokenHash, type: link.type })
-    .then(({ error }) => (error ? authErrorMessage(error) : null));
-  return verification;
-}
+export const emailLinkVerification: Promise<EmailLinkResult> | null =
+  typeof window === "undefined" ? null : startVerification();
