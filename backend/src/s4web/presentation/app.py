@@ -3,11 +3,16 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from s4web.presentation.api.simulation_router import router as simulation_router
+
+# 開発時だけ backend/.env を読む。探索に任せると起動方法で起点が変わるため、パスを明示する。
+# ファイルがなければ何もせず、既に設定済みの環境変数（Cloud Run など）も上書きしない。
+load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
 
 def create_app() -> FastAPI:
