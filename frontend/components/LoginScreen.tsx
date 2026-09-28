@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { useAuth } from "@/components/AuthProvider";
 import { GoogleButton } from "@/components/GoogleButton";
 import { SignInForm } from "@/components/SignInForm";
 import { SignUpForm } from "@/components/SignUpForm";
@@ -21,6 +22,7 @@ type View =
 /** 未ログイン時に計算画面の代わりに出す画面。枠と表示の切り替えだけを持つ。 */
 export function LoginScreen() {
   const [view, setView] = useState<View>({ name: "signIn" });
+  const { linkError } = useAuth();
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
@@ -34,6 +36,11 @@ export function LoginScreen() {
           </p>
         </CardHeader>
         <CardContent className="grid gap-4">
+          {linkError && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {linkError}
+            </p>
+          )}
           {view.name === "signIn" && (
             <SignInForm onSignUp={() => setView({ name: "signUp" })} />
           )}
