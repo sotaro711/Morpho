@@ -34,6 +34,11 @@ def _supabase_url() -> str:
     return url.rstrip("/")
 
 
+def ensure_configured() -> None:
+    """必要な環境変数がそろっているかを確かめる。未設定なら RuntimeError。"""
+    _supabase_url()
+
+
 @lru_cache(maxsize=1)
 def _jwks_client() -> jwt.PyJWKClient:
     # 公開鍵は PyJWKClient がプロセス内にキャッシュし、未知の kid のときだけ取り直す。
