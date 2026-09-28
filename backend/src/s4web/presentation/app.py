@@ -4,11 +4,13 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from s4web.presentation.api.me_router import router as me_router
 from s4web.presentation.api.simulation_router import router as simulation_router
+from s4web.presentation.auth import current_user
 
 # 開発時だけ backend/.env を読む。探索に任せると起動方法で起点が変わるため、パスを明示する。
 # ファイルがなければ何もせず、既に設定済みの環境変数（Cloud Run など）も上書きしない。
@@ -26,7 +28,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.include_router(simulation_router, prefix="/api")
+    # /api 配下はすべてログイン必須。health だけはルーターの外に置いて公開のままにする。
+    app.include_router(simulation_router, prefix="/api", dependencies=[Depends(current_user)])
+    app.include_router(me_router, prefix="/api")
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
