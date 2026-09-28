@@ -63,3 +63,7 @@ jobs:
 
       - name: next build
         run: npm run build
+        env:
+          # ビルドが通るかだけを見るので、実在しない値でよい
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_dummy
