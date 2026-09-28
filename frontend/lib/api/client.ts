@@ -1,10 +1,12 @@
 import createClient from "openapi-fetch";
 
+import { authMiddleware } from "./auth-middleware";
 import type { components, paths } from "./schema";
 
 // openapi-fetch クライアント。/api/* は next.config.ts の rewrites で
 // FastAPI バックエンド (:8000) にプロキシされる。
 export const apiClient = createClient<paths>({ baseUrl: "/" });
+apiClient.use(authMiddleware);
 
 // 生成スキーマから使いやすい別名を切り出す（フロント側はこれを使う）。
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
