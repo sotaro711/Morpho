@@ -42,7 +42,7 @@ def create_app() -> FastAPI:
 
     # /api 配下はすべてログイン必須。health だけはルーターの外に置いて公開のままにする。
     app.include_router(simulation_router, prefix="/api", dependencies=[Depends(current_user)])
-    app.include_router(me_router, prefix="/api")
+    app.include_router(me_router, prefix="/api", dependencies=[Depends(current_user)])
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
