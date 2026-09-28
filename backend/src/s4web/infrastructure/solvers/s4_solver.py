@@ -17,6 +17,10 @@ R/T は回折 0 次（正反射・直進透過）の成分（詳細は _solve_at
   - 無損失材料に微小吸収 k=1e-4 を付与して固有値の縮退をほどく
   - それでも NaN / 範囲外の R,T になった波長は微小シフトして再計算する
 検証の経緯は backend/scripts/stepped_grating_validation.py の docstring を参照。
+
+波長分散する材料（DispersiveMaterial）を含む条件では、波長ごとに全材料の ε を
+登録し直してから解く。S4 の SetMaterial は同名で呼ぶと ε を上書きし、直後の
+SetFrequency が層の固有モードと解を破棄するので、新しい ε で解き直される。
 """
 
 import math
@@ -25,7 +29,7 @@ import S4  # type: ignore[import-not-found]
 
 from s4web.domain.entities.diffraction import AngularDistribution, DiffractionOrder
 from s4web.domain.entities.layer import Layer
-from s4web.domain.entities.material import Material
+from s4web.domain.entities.material import OpticalMaterial
 from s4web.domain.entities.simulation import (
     Polarization,
     SimulationCondition,
@@ -58,11 +62,13 @@ class S4Solver(SolverPort):
         transmittance: list[float] = []
         reflectance_total: list[float] = []
         for wl_nm in wls:
+            _update_materials(sim, condition, wl_nm)
             r, t, r_total = _solve_at(sim, top_name, bottom_name, wl_nm)
             if condition.is_patterned and _is_anomalous(r, t):
                 # Rayleigh 点（回折次数の出没する特異波長）では固有値計算が縮退して
                 # NaN や発散が出る。波長を微小にずらして解き直す。
                 for shift in _WL_SHIFTS_NM:
+                    _update_materials(sim, condition, wl_nm + shift)
                     r, t, r_total = _solve_at(sim, top_name, bottom_name, wl_nm + shift)
                     if not _is_anomalous(r, t):
                         break
@@ -92,10 +98,12 @@ class S4Solver(SolverPort):
 
         distributions: list[AngularDistribution] = []
         for wl_nm in condition.wavelengths_nm():
+            _update_materials(sim, condition, wl_nm)
             orders = _orders_at(sim, top_name, wl_nm, sin_in, period_um)
             if orders is None and condition.is_patterned:
                 # スペクトル計算と同じ Rayleigh 点対策（波長微小シフトで解き直す）。
                 for shift in _WL_SHIFTS_NM:
+                    _update_materials(sim, condition, wl_nm + shift)
                     orders = _orders_at(sim, top_name, wl_nm + shift, sin_in, period_um)
                     if orders is not None:
                         break
@@ -122,17 +130,9 @@ class S4Solver(SolverPort):
             sim.SetOptions(PolarizationDecomposition=True)
 
         # 各材料の比誘電率 ε を登録する（RCWA はこの ε をフーリエ空間で扱う）。
-        # 層が参照する前に存在している必要があるので先に登録する。
-        # 微小吸収は入射側半無限層（i=0）には付与しない。入射媒質に吸収があると
-        # 入射パワーの規格化がずれ、R/T の定義が曖昧になるため。
-        for i, layer in enumerate(condition.layers):
-            lossy = patterned and i > 0
-            sim.SetMaterial(Name=_mat_name(i), Epsilon=_epsilon(layer.material, lossy))
-            for j, region in enumerate(layer.regions):
-                sim.SetMaterial(
-                    Name=_region_mat_name(i, j),
-                    Epsilon=_epsilon(region.material, lossy),
-                )
+        # 層が参照する前に存在している必要があるので先に登録する。分散材料の値は
+        # 最初の波長のもので、各波長を解く前に _update_materials が登録し直す。
+        _set_materials(sim, condition, condition.wavelengths_nm()[0])
 
         # 層を入射側から順に追加する。regions を持つ層は、層の材料を背景として
         # 矩形領域を重ねる（S4 の Center/Halfwidths は単位胞座標・μm）。
@@ -246,9 +246,35 @@ def _is_anomalous(r: float, t: float) -> bool:
     return r + t > 1.05
 
 
-def _epsilon(material: Material, lossy: bool) -> complex:
-    """材料の比誘電率。lossy 指定時は無損失材料に微小吸収を付与する。"""
-    nc = material.refractive_index
+def _set_materials(sim, condition: SimulationCondition, wl_nm: float) -> None:
+    """全層・全領域の材料の ε を、指定波長の値で登録（同名なら上書き）する。
+
+    微小吸収は入射側半無限層（i=0）には付与しない。入射媒質に吸収があると
+    入射パワーの規格化がずれ、R/T の定義が曖昧になるため。
+    """
+    patterned = condition.is_patterned
+    for i, layer in enumerate(condition.layers):
+        lossy = patterned and i > 0
+        sim.SetMaterial(Name=_mat_name(i), Epsilon=_epsilon(layer.material, lossy, wl_nm))
+        for j, region in enumerate(layer.regions):
+            sim.SetMaterial(
+                Name=_region_mat_name(i, j),
+                Epsilon=_epsilon(region.material, lossy, wl_nm),
+            )
+
+
+def _update_materials(sim, condition: SimulationCondition, wl_nm: float) -> None:
+    """分散材料を含む条件なら、解く直前にその波長の ε で登録し直す。
+
+    定数の材料だけの条件では何もしない（従来の計算経路を変えない）。
+    """
+    if condition.is_dispersive:
+        _set_materials(sim, condition, wl_nm)
+
+
+def _epsilon(material: OpticalMaterial, lossy: bool, wl_nm: float) -> complex:
+    """指定波長での材料の比誘電率。lossy 指定時は無損失材料に微小吸収を付与する。"""
+    nc = material.refractive_index_at(wl_nm)
     if lossy and nc.imag == 0.0:
         nc = complex(nc.real, _LOSS_K)
     return nc * nc

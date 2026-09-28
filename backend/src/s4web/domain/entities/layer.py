@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from s4web.domain.entities.material import Material
+from s4web.domain.entities.material import OpticalMaterial
 
 
 @dataclass(frozen=True)
@@ -14,7 +14,7 @@ class Region:
     面内は 1 次元（x 方向のみ）を対象とする。
     """
 
-    material: Material
+    material: OpticalMaterial
     x_nm: float
     width_nm: float
 
@@ -45,7 +45,7 @@ class Layer:
 
     name: str
     thickness_nm: float
-    material: Material
+    material: OpticalMaterial
     regions: tuple[Region, ...] = ()
 
     def __post_init__(self) -> None:
