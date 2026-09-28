@@ -21,3 +21,6 @@ backend/scripts/out
 backend/vendor/S4/build
 **/__pycache__
 **/.DS_Store
+
+# Supabase CLI の作業ファイル（本番イメージには不要）
+supabase

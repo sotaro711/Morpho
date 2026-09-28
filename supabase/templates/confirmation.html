@@ -1,0 +1,4 @@
+<h2>Morpho のメールアドレス確認</h2>
+<p>以下のリンクを開くと登録が完了します。リンクの有効期限は 1 時間です。</p>
+<p><a href="{{ if .RedirectTo }}{{ .RedirectTo }}{{ else }}{{ .SiteURL }}{{ end }}?token_hash={{ .TokenHash }}&type=email">メールアドレスを確認する</a></p>
+<p>心当たりがない場合は、このメールを無視してください。</p>
