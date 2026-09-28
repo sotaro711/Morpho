@@ -204,19 +204,24 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** LayerDTO */
+        /**
+         * LayerDTO
+         * @description スタック中の 1 層。material_id を指定すると登録した材料を使い、n, k は不要になる。
+         */
         LayerDTO: {
             /** Name */
             name: string;
             /** Thicknessnm */
             thicknessNm: number;
             /** N */
-            n: number;
+            n?: number | null;
             /**
              * K
              * @default 0
              */
             k: number;
+            /** Materialid */
+            materialId?: string | null;
             /**
              * Regions
              * @default []
@@ -286,6 +291,8 @@ export interface components {
         /**
          * RegionDTO
          * @description 層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。
+         *
+         *     material_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。
          */
         RegionDTO: {
             /** Xnm */
@@ -293,12 +300,14 @@ export interface components {
             /** Widthnm */
             widthNm: number;
             /** N */
-            n: number;
+            n?: number | null;
             /**
              * K
              * @default 0
              */
             k: number;
+            /** Materialid */
+            materialId?: string | null;
         };
         /** SimulationRequest */
         SimulationRequest: {

@@ -551,13 +551,31 @@
             "title": "Thicknessnm"
           },
           "n": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "N"
           },
           "k": {
             "type": "number",
             "title": "K",
             "default": 0.0
+          },
+          "materialId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materialid"
           },
           "regions": {
             "items": {
@@ -571,10 +589,10 @@
         "type": "object",
         "required": [
           "name",
-          "thicknessNm",
-          "n"
+          "thicknessNm"
         ],
-        "title": "LayerDTO"
+        "title": "LayerDTO",
+        "description": "スタック中の 1 層。material_id を指定すると登録した材料を使い、n, k は不要になる。"
       },
       "MaterialCreateRequest": {
         "properties": {
@@ -717,23 +735,40 @@
             "title": "Widthnm"
           },
           "n": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "N"
           },
           "k": {
             "type": "number",
             "title": "K",
             "default": 0.0
+          },
+          "materialId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materialid"
           }
         },
         "type": "object",
         "required": [
           "xNm",
-          "widthNm",
-          "n"
+          "widthNm"
         ],
         "title": "RegionDTO",
-        "description": "層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。"
+        "description": "層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。\n\nmaterial_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。"
       },
       "SimulationRequest": {
         "properties": {
