@@ -104,6 +104,21 @@ class SimulationCondition:
                             f"region [{region.x_nm}, {region.end_nm}) in layer "
                             f"'{layer.name}' exceeds period_nm={self.period_nm}"
                         )
+        self._validate_dispersion_ranges()
+
+    def _validate_dispersion_ranges(self) -> None:
+        # 分散データは測定範囲の外へ外挿しない。範囲外の波長を含む条件はここで拒否する。
+        wls = self.wavelengths_nm()
+        lo, hi = min(wls), max(wls)
+        for layer, material in self._layer_materials():
+            wl_range = material.wavelength_range_nm
+            if wl_range is None:
+                continue
+            if lo < wl_range[0] or hi > wl_range[1]:
+                raise ValueError(
+                    f"wavelengths {lo:g}-{hi:g} nm are outside the dispersion data of layer "
+                    f"'{layer.name}' ({wl_range[0]:g}-{wl_range[1]:g} nm)"
+                )
 
     def _layer_materials(self) -> list[tuple[Layer, OpticalMaterial]]:
         """全層の背景材料と領域の材料を、属する層と組にして並べる。"""

@@ -1,3 +1,5 @@
+import pytest
+
 from s4web.domain.entities.layer import Layer, Region
 from s4web.domain.entities.material import DispersionPoint, DispersiveMaterial, Material
 from s4web.domain.entities.simulation import Polarization, SimulationCondition
@@ -7,10 +9,12 @@ SUBSTRATE = Material(1.71, 2.88)
 MEASURED = DispersiveMaterial((DispersionPoint(400, 2.4), DispersionPoint(700, 2.2)))
 
 
-def _condition(film: Layer, period_nm: float | None = None) -> SimulationCondition:
+def _condition(
+    film: Layer, wl_min: float = 400, wl_max: float = 700, period_nm: float | None = None
+) -> SimulationCondition:
     return SimulationCondition(
-        wl_min_nm=400,
-        wl_max_nm=700,
+        wl_min_nm=wl_min,
+        wl_max_nm=wl_max,
         wl_points=31,
         theta_deg=0.0,
         polarization=Polarization.S,
@@ -31,3 +35,33 @@ def test_dispersive_layer_makes_the_condition_dispersive() -> None:
 def test_dispersive_region_makes_the_condition_dispersive() -> None:
     patterned = Layer("grating", 100, AIR, (Region(MEASURED, 0, 200),))
     assert _condition(patterned, period_nm=400).is_dispersive
+
+
+def test_wavelengths_within_the_dispersion_data_are_accepted() -> None:
+    # 範囲の両端ちょうどは範囲内として扱う。
+    _condition(Layer("film", 100, MEASURED), wl_min=400, wl_max=700)
+
+
+@pytest.mark.parametrize("wl_min, wl_max", [(380, 700), (400, 780)], ids=["below", "above"])
+def test_wavelengths_outside_the_dispersion_data_are_rejected(wl_min: float, wl_max: float) -> None:
+    with pytest.raises(ValueError, match="outside the dispersion data of layer 'film'"):
+        _condition(Layer("film", 100, MEASURED), wl_min=wl_min, wl_max=wl_max)
+
+
+def test_dispersive_region_range_is_also_checked() -> None:
+    patterned = Layer("grating", 100, AIR, (Region(MEASURED, 0, 200),))
+    with pytest.raises(ValueError, match="layer 'grating'"):
+        _condition(patterned, wl_max=780, period_nm=400)
+
+
+def test_explicit_wavelengths_are_checked() -> None:
+    with pytest.raises(ValueError, match="outside the dispersion data"):
+        SimulationCondition(
+            wl_min_nm=400,
+            wl_max_nm=700,
+            wl_points=3,
+            theta_deg=0.0,
+            polarization=Polarization.S,
+            layers=(Layer("air", 0, AIR), Layer("film", 100, MEASURED), Layer("sub", 0, SUBSTRATE)),
+            explicit_wavelengths_nm=(450.0, 550.0, 750.0),
+        )
