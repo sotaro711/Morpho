@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 
+import { AppShell } from "@/components/AppShell";
 import { AuthGate } from "@/components/AuthGate";
 import { AuthProvider } from "@/components/AuthProvider";
 
@@ -38,7 +39,9 @@ export default function RootLayout({
     >
       <body className="antialiased">
         <AuthProvider>
-          <AuthGate>{children}</AuthGate>
+          <AuthGate>
+            <AppShell>{children}</AppShell>
+          </AuthGate>
         </AuthProvider>
       </body>
     </html>
