@@ -22,6 +22,7 @@ analysis = [
 dev = [
     "ruff>=0.8",
     "pyright>=1.1.390",
+    "pytest>=9.1.1",
 ]
 # S4 は同梱した修正版ソース (vendor/S4) からビルドする。
 solver = [
@@ -51,6 +52,9 @@ select = [
     "B",        # bugbear
     "TID",      # tidy-imports（層違反の検出に使う）
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.pyright]
 include = ["src"]

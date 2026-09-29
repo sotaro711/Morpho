@@ -37,6 +37,10 @@ jobs:
       - name: pyright
         run: uv run --no-group solver pyright
 
+      # CI では S4 をビルドしないので、S4 を使うテストは自動でスキップされる。
+      - name: pytest
+        run: uv run --no-group solver pytest
+
   frontend:
     name: frontend (eslint / tsc / build)
     runs-on: ubuntu-latest

@@ -5,6 +5,7 @@ from enum import StrEnum
 
 from s4web.domain.entities.color import ColorResult
 from s4web.domain.entities.layer import Layer
+from s4web.domain.entities.material import OpticalMaterial
 
 
 class Polarization(StrEnum):
@@ -103,6 +104,36 @@ class SimulationCondition:
                             f"region [{region.x_nm}, {region.end_nm}) in layer "
                             f"'{layer.name}' exceeds period_nm={self.period_nm}"
                         )
+        self._validate_dispersion_ranges()
+
+    def _validate_dispersion_ranges(self) -> None:
+        # 分散データは測定範囲の外へ外挿しない。範囲外の波長を含む条件はここで拒否する。
+        wls = self.wavelengths_nm()
+        lo, hi = min(wls), max(wls)
+        for layer, material in self._layer_materials():
+            wl_range = material.wavelength_range_nm
+            if wl_range is None:
+                continue
+            if lo < wl_range[0] or hi > wl_range[1]:
+                raise ValueError(
+                    f"wavelengths {lo:g}-{hi:g} nm are outside the dispersion data of layer "
+                    f"'{layer.name}' ({wl_range[0]:g}-{wl_range[1]:g} nm)"
+                )
+
+    def _layer_materials(self) -> list[tuple[Layer, OpticalMaterial]]:
+        """全層の背景材料と領域の材料を、属する層と組にして並べる。"""
+        return [
+            (layer, material)
+            for layer in self.layers
+            for material in (layer.material, *(region.material for region in layer.regions))
+        ]
+
+    @property
+    def is_dispersive(self) -> bool:
+        """波長分散する材料を含むかどうか。"""
+        return any(
+            material.wavelength_range_nm is not None for _, material in self._layer_materials()
+        )
 
     @property
     def is_patterned(self) -> bool:
@@ -120,7 +151,9 @@ class SimulationCondition:
         if self.wl_points == 1:
             return [self.wl_min_nm]
         step = (self.wl_max_nm - self.wl_min_nm) / (self.wl_points - 1)
-        return [self.wl_min_nm + i * step for i in range(self.wl_points)]
+        # wl_min + (n-1)*step は丸め誤差で wl_max をわずかに超えることがあり、
+        # 分散データの上限ちょうどを指定した条件が範囲外扱いになる。末尾は wl_max に固定する。
+        return [*(self.wl_min_nm + i * step for i in range(self.wl_points - 1)), self.wl_max_nm]
 
 
 @dataclass(frozen=True)
