@@ -19,8 +19,8 @@ import type {
   LayerDTO,
   SimulationRequest,
 } from "@/lib/api/client";
-import type { Medium, Settings } from "@/lib/stack";
-import { toSimulationRequest } from "@/lib/stack";
+import type { Medium, Optics, Settings } from "@/lib/stack";
+import { apiOptics, toSimulationRequest } from "@/lib/stack";
 
 /** 段差の 1 ブロック（カラム）。id は React のキー用。 */
 export type StepBlock = { id: string; widthNm: number; raised: boolean };
@@ -62,7 +62,7 @@ export function periodNm(config: SteppedConfig): number {
 const AIR: Medium = { name: "空気", n: 1.0, k: 0 };
 
 /** 1 カラムを構成するスラブ（下 = 基板側 → 上 = 入射側の順）。 */
-export type Slab = { name: string; thicknessNm: number; n: number; k: number };
+export type Slab = { name: string; thicknessNm: number } & Optics;
 
 function columnProfile(
   films: EditableLayer[],
@@ -73,11 +73,17 @@ function columnProfile(
   const prof: Slab[] = [];
   if (raised) {
     // 基板上げ = 基板材料の台座。名前も基板と揃え、断面図で同じ色になるようにする
-    prof.push({ name: substrate.name, thicknessNm: raiseNm, n: substrate.n, k: substrate.k });
+    prof.push({ ...substrate, thicknessNm: raiseNm });
   }
   // films は入射側（上）→ 基板側（下）の順なので、下から積むために反転する
   for (const l of [...films].reverse()) {
-    prof.push({ name: l.name, thicknessNm: l.thicknessNm, n: l.n, k: l.k });
+    prof.push({
+      name: l.name,
+      thicknessNm: l.thicknessNm,
+      n: l.n,
+      k: l.k,
+      materialId: l.materialId,
+    });
   }
   return prof;
 }
@@ -141,7 +147,7 @@ export function toSteppedSimulationRequest(
       const slab = materialAt(col.prof, zMid);
       return slab === null
         ? []
-        : [{ xNm: col.xNm, widthNm: col.widthNm, n: slab.n, k: slab.k }];
+        : [{ xNm: col.xNm, widthNm: col.widthNm, ...apiOptics(slab) }];
     });
     layers.push({
       name: `slice${i}`,
@@ -151,13 +157,7 @@ export function toSteppedSimulationRequest(
       regions,
     });
   }
-  layers.push({
-    name: substrate.name,
-    thicknessNm: 0,
-    n: substrate.n,
-    k: substrate.k,
-    regions: [],
-  });
+  layers.push({ name: substrate.name, thicknessNm: 0, ...apiOptics(substrate), regions: [] });
 
   return {
     ...settings,

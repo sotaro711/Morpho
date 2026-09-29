@@ -2,6 +2,7 @@
 
 import type { Annotations, Shape } from "plotly.js";
 
+import { useMaterials } from "@/components/MaterialsProvider";
 import Plot from "@/components/Plot";
 import type { LayerDTO } from "@/lib/api/client";
 import type { StructureColumn } from "@/lib/stepped";
@@ -17,13 +18,17 @@ const PALETTE = [
 // 平面多層膜には面内の周期が無いので、断面図の横幅は表示用の公称値を使う。
 const DISPLAY_WIDTH = 100;
 
-// n は API 上は省略可（登録した材料を使う層）。表示上は未指定を「?」として扱う。
-type Optical = { n?: number | null; k: number };
+// materialId があれば登録した材料（波長分散）で、n, k は使わない。
+type Optical = { name: string; n?: number | null; k: number; materialId?: string | null };
+
+// 材料 id → 材料名。
+type MaterialNames = Map<string, string>;
 
 // 色分けのキー。名前ではなく光学定数で分けることで、同じ材料のつもりで
 // n や k を打ち間違えた層が別色になり、入力ミスに気づけるようにする(#33)。
-function materialKey({ n, k }: Optical): string {
-  return `${n ?? "?"}|${k}`;
+// 登録した材料は材料ごとに 1 色にする。
+function materialKey({ n, k, materialId }: Optical): string {
+  return materialId ? `material:${materialId}` : `${n ?? "?"}|${k}`;
 }
 
 // 出現順にパレットを割り当てる。キーの重複は最初の出現位置を優先する。
@@ -35,7 +40,13 @@ function assignColors(keys: Iterable<string>): Map<string, string> {
   return colorOf;
 }
 
-function formatIndex({ n, k }: Optical): string {
+function formatIndex({ name, n, k, materialId }: Optical, names: MaterialNames): string {
+  if (materialId) {
+    const materialName = names.get(materialId);
+    // 層名が材料名と同じなら繰り返さない。
+    if (materialName === undefined) return "削除された材料";
+    return materialName === name ? "登録した材料" : `材料: ${materialName}`;
+  }
   const nText = n ?? "?";
   return k > 0 ? `n=${nText}, k=${k}` : `n=${nText}`;
 }
@@ -47,6 +58,8 @@ export default function StructureView({
   layers: LayerDTO[];
   stepped?: { periodNm: number; columns: StructureColumn[] };
 }) {
+  const { materials } = useMaterials();
+  const names: MaterialNames = new Map(materials.map((m) => [m.id, m.name]));
   if (stepped && stepped.columns.length > 0) {
     // 基板は layers の末尾（structureLayers の規約）。段付き表示にも引き継ぐ。
     const substrate = layers[layers.length - 1] ?? { name: "基板", n: 1, k: 0 };
@@ -55,10 +68,11 @@ export default function StructureView({
         periodNm={stepped.periodNm}
         columns={stepped.columns}
         substrate={substrate}
+        names={names}
       />
     );
   }
-  return <PlanarView layers={layers} />;
+  return <PlanarView layers={layers} names={names} />;
 }
 
 /** 段付きモード: 1 周期分の断面をカラムごとに実寸で描く。 */
@@ -66,10 +80,12 @@ function SteppedView({
   periodNm,
   columns,
   substrate,
+  names,
 }: {
   periodNm: number;
   columns: StructureColumn[];
-  substrate: Optical & { name: string };
+  substrate: Optical;
+  names: MaterialNames;
 }) {
   // 光学定数 → 色。平面モードと同じく膜(上の層)から順に割り当て、基板は最後。
   // 基板上げの台座は基板と同じ光学定数なので、自動的に同じ色になる。
@@ -114,7 +130,7 @@ function SteppedView({
     {
       x: periodNm / 2,
       y: subH / 2,
-      text: `${substrate.name} (${formatIndex(substrate)})`,
+      text: `${substrate.name} (${formatIndex(substrate, names)})`,
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     },
@@ -149,7 +165,7 @@ function SteppedView({
 }
 
 /** 平面モード: 従来どおり全層を横幅いっぱいの帯として描く。 */
-function PlanarView({ layers }: { layers: LayerDTO[] }) {
+function PlanarView({ layers, names }: { layers: LayerDTO[]; names: MaterialNames }) {
   const colorOf = assignColors(layers.map(materialKey));
 
   // 表示用の各層の高さ。半無限層（厚さ0）には名目高さを与える。
@@ -174,7 +190,7 @@ function PlanarView({ layers }: { layers: LayerDTO[] }) {
     annotations.push({
       x: DISPLAY_WIDTH / 2,
       y: (y0 + y1) / 2,
-      text: `${layer.name} (${layer.thicknessNm > 0 ? `${layer.thicknessNm}nm, ` : ""}${formatIndex(layer)})`,
+      text: `${layer.name} (${layer.thicknessNm > 0 ? `${layer.thicknessNm}nm, ` : ""}${formatIndex(layer, names)})`,
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     });

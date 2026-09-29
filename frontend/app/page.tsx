@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 
 import { DiffractionModeToggle } from "@/components/DiffractionModeToggle";
 import { LayerEditor } from "@/components/LayerEditor";
-import { NumberInput } from "@/components/NumberInput";
+import { Field } from "@/components/Field";
+import { OpticsFields } from "@/components/OpticsFields";
 import { PairInsertForm } from "@/components/PairInsertForm";
 import { SettingsForm } from "@/components/SettingsForm";
 import { useSimulator } from "@/components/SimulatorProvider";
@@ -17,7 +18,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import type { SweepResponse } from "@/lib/api/client";
 import {
   entryColor,
@@ -268,30 +268,16 @@ function MediumRow({
   onChange: (v: Medium) => void;
 }) {
   return (
-    <div className="grid grid-cols-[auto_1fr_1fr_1fr] items-end gap-2">
-      <span className="pb-2 text-sm font-semibold">{label}</span>
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">名前</Label>
-        <Input
-          value={value.name}
-          onChange={(e) => onChange({ ...value, name: e.target.value })}
-        />
-      </div>
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">屈折率 n</Label>
-        <NumberInput
-          step={0.01}
-          value={value.n}
-          onChange={(n) => onChange({ ...value, n })}
-        />
-      </div>
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">消衰係数 k</Label>
-        <NumberInput
-          step={0.01}
-          value={value.k}
-          onChange={(k) => onChange({ ...value, k })}
-        />
+    <div className="grid gap-2">
+      <span className="text-sm font-semibold">{label}</span>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="名前">
+          <Input
+            value={value.name}
+            onChange={(e) => onChange({ ...value, name: e.target.value })}
+          />
+        </Field>
+        <OpticsFields value={value} onChange={(patch) => onChange({ ...value, ...patch })} />
       </div>
     </div>
   );

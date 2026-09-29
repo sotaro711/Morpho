@@ -20,8 +20,22 @@ import type {
  */
 export type Settings = Omit<SimulationRequest, "layers" | "thetaDeg">;
 
+/**
+ * 層や基板の光学定数。materialId があれば登録した材料（波長分散）を使い、n, k は使わない。
+ * n, k は手入力の値で、材料を選んでいる間も残しておき、手入力に戻したときに復元する。
+ */
+export type Optics = { n: number; k: number; materialId?: string | null };
+
 /** 入射媒質・基板（半無限）の名前と光学定数。 */
-export type Medium = { name: string; n: number; k: number };
+export type Medium = { name: string } & Optics;
+
+/**
+ * API に送る光学定数。材料を選んでいれば materialId、なければ n, k。
+ * k はスキーマ上必須（既定値 0）なので、材料のときは 0 を添える（API は materialId を優先する）。
+ */
+export function apiOptics({ n, k, materialId }: Optics): Pick<LayerDTO, "n" | "k" | "materialId"> {
+  return materialId ? { materialId, k: 0 } : { n, k };
+}
 
 export const DEFAULT_SETTINGS: Settings = {
   wlMin: 380,
@@ -60,9 +74,17 @@ export function structureLayers(
       thicknessNm: l.thicknessNm,
       n: l.n,
       k: l.k,
+      materialId: l.materialId,
       regions: l.regions,
     })),
-    { name: substrate.name, thicknessNm: 0, n: substrate.n, k: substrate.k, regions: [] },
+    {
+      name: substrate.name,
+      thicknessNm: 0,
+      n: substrate.n,
+      k: substrate.k,
+      materialId: substrate.materialId,
+      regions: [],
+    },
   ];
 }
 
@@ -70,7 +92,13 @@ export function structureLayers(
 function buildLayers(films: EditableLayer[], substrate: Medium): LayerDTO[] {
   return [
     { name: INCIDENT_AIR.name, thicknessNm: 0, n: INCIDENT_AIR.n, k: INCIDENT_AIR.k, regions: [] },
-    ...structureLayers(films, substrate),
+    ...films.map((l) => ({
+      name: l.name,
+      thicknessNm: l.thicknessNm,
+      ...apiOptics(l),
+      regions: l.regions,
+    })),
+    { name: substrate.name, thicknessNm: 0, ...apiOptics(substrate), regions: [] },
   ];
 }
 
