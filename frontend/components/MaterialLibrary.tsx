@@ -1,15 +1,16 @@
 "use client";
 
-import { Check, Pencil, Trash2, X } from "lucide-react";
+import { Check, ChartLine, Pencil, Trash2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
 import { useMaterials } from "@/components/MaterialsProvider";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getMaterial, type MaterialDetail, type MaterialSummary } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const MaterialChart = dynamic(() => import("@/components/MaterialChart"), { ssr: false });
@@ -19,21 +20,22 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** 登録した材料（波長ごとの n, k）の登録・一覧・グラフ・名前変更・削除。 */
 export function MaterialLibrary() {
   const { materials, loading, loadError, add, rename, remove } = useMaterials();
-  // 登録直後はその材料のグラフを開き、読み込みが正しいかをその場で確かめられるようにする。
-  const [opened, setOpened] = useState<MaterialDetail | null>(null);
+  // グラフを開いている材料（id → n, k の表）。複数を開いて見比べられる。
+  // 登録直後もその材料のグラフを開き、読み込みが正しいかをその場で確かめられるようにする。
+  const [opened, setOpened] = useState<Record<string, MaterialDetail>>({});
+  const open = (detail: MaterialDetail) => setOpened((prev) => ({ ...prev, [detail.id]: detail }));
+  const close = (id: string) =>
+    setOpened((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => key !== id)));
 
   return (
     <div className="grid gap-6">
       <Card>
         <CardHeader>
           <CardTitle className="text-base">材料を登録</CardTitle>
-          <CardDescription>
-            エリプソメータなどで測った n, k のテキストファイルを登録すると、計算画面で層や基板の材料として選べます。
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <RegisterForm
-            onRegister={async (name, content) => setOpened(await add(name, content))}
+            onRegister={async (name, content) => open(await add(name, content))}
           />
         </CardContent>
       </Card>
@@ -41,7 +43,6 @@ export function MaterialLibrary() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">登録した材料</CardTitle>
-          <CardDescription>名前を押すと n, k のグラフを表示します。</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2">
           {loading && <p className="text-xs text-muted-foreground">読み込み中…</p>}
@@ -53,13 +54,13 @@ export function MaterialLibrary() {
             <MaterialRow
               key={m.id}
               material={m}
-              opened={opened?.id === m.id ? opened : null}
-              onOpen={async () => setOpened(await getMaterial(m.id))}
-              onClose={() => setOpened(null)}
+              opened={opened[m.id] ?? null}
+              onOpen={async () => open(await getMaterial(m.id))}
+              onClose={() => close(m.id)}
               onRename={(name) => rename(m.id, name)}
               onDelete={async () => {
                 await remove(m.id);
-                if (opened?.id === m.id) setOpened(null);
+                close(m.id);
               }}
             />
           ))}
@@ -108,16 +109,18 @@ function RegisterForm({
   return (
     <form onSubmit={submit} className="grid gap-2">
       <div className="grid gap-1">
-        <Label htmlFor="material-file" className="text-xs text-muted-foreground">
-          光学定数ファイル（1 行に「波長 nm、n、k」。380〜780 nm を含むこと）
-        </Label>
         <Input
           key={inputKey}
           id="material-file"
           type="file"
-          accept=".txt,.csv,.dat,.tsv,text/plain,text/csv"
+          accept=".txt,.csv,.dat,.tsv,.nk,text/plain,text/csv"
+          aria-label="光学定数ファイル"
+          aria-describedby="material-file-format"
           onChange={(e) => pick(e.target.files?.[0] ?? null)}
         />
+        <p id="material-file-format" className="text-xs text-muted-foreground">
+          波長 nm・n・k の 3 列
+        </p>
       </div>
       {file && (
         <div className="grid grid-cols-[1fr_auto] items-end gap-2">
@@ -181,11 +184,15 @@ function MaterialRow({
         {editing === null ? (
           <button
             type="button"
-            className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:underline"
+            className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm font-medium hover:underline"
             onClick={() => run(opened ? async () => onClose() : onOpen)}
             title={opened ? "グラフを閉じる" : "n, k のグラフを見る"}
+            aria-expanded={Boolean(opened)}
           >
-            {material.name}
+            <ChartLine
+              className={cn("h-4 w-4 shrink-0", opened ? "text-primary" : "text-muted-foreground")}
+            />
+            <span className="truncate">{material.name}</span>
           </button>
         ) : (
           <form
