@@ -6,13 +6,16 @@ alias_generator でこのギャップを吸収する。
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 from s4web.domain.entities.color import ColorResult
 from s4web.domain.entities.diffraction import AngularDistribution
 from s4web.domain.entities.layer import Layer, Region
-from s4web.domain.entities.material import Material
+from s4web.domain.entities.material import DispersiveMaterial, Material, OpticalMaterial
 from s4web.domain.entities.simulation import (
     AngleSweepEntry,
     DiffractionMode,
@@ -27,35 +30,60 @@ class _CamelModel(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
+# 層・領域が参照できる材料。キーは登録した材料の id。
+Materials = Mapping[str, DispersiveMaterial]
+
+
+def _resolve_material(
+    n: float | None, k: float, material_id: UUID | None, materials: Materials
+) -> OpticalMaterial:
+    """material_id があれば登録した材料（分散）を優先し、無ければ n, k の定数材料を返す。"""
+    if material_id is not None:
+        material = materials.get(str(material_id))
+        if material is None:
+            raise ValueError("選択した材料が見つかりません。材料を選び直してください")
+        return material
+    if n is None:
+        raise ValueError("n か materialId のどちらかが必要です")
+    return Material(n=n, k=k)
+
+
 class RegionDTO(_CamelModel):
-    """層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。"""
+    """層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。
+
+    material_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。
+    """
 
     x_nm: float
     width_nm: float
-    n: float
+    n: float | None = None
     k: float = 0.0
+    material_id: UUID | None = None
 
-    def to_entity(self) -> Region:
+    def to_entity(self, materials: Materials) -> Region:
         return Region(
-            material=Material(n=self.n, k=self.k),
+            material=_resolve_material(self.n, self.k, self.material_id, materials),
             x_nm=self.x_nm,
             width_nm=self.width_nm,
         )
 
 
 class LayerDTO(_CamelModel):
+    """スタック中の 1 層。material_id を指定すると登録した材料を使い、n, k は不要になる。"""
+
     name: str
     thickness_nm: float
-    n: float
+    n: float | None = None
     k: float = 0.0
+    material_id: UUID | None = None
     regions: list[RegionDTO] = []
 
-    def to_entity(self) -> Layer:
+    def to_entity(self, materials: Materials) -> Layer:
         return Layer(
             name=self.name,
             thickness_nm=self.thickness_nm,
-            material=Material(n=self.n, k=self.k),
-            regions=tuple(region.to_entity() for region in self.regions),
+            material=_resolve_material(self.n, self.k, self.material_id, materials),
+            regions=tuple(region.to_entity(materials) for region in self.regions),
         )
 
 
@@ -73,14 +101,24 @@ class SimulationRequest(_CamelModel):
     # wlMin / wlMax / wlPoints を使わず、このリストの波長だけを計算する。
     wavelengths_nm: list[float] | None = Field(default=None, min_length=1, max_length=2001)
 
-    def to_condition(self) -> SimulationCondition:
+    def material_ids(self) -> set[str]:
+        """層・領域が参照している材料の id。"""
+        return {
+            str(material_id)
+            for layer in self.layers
+            for material_id in (layer.material_id, *(r.material_id for r in layer.regions))
+            if material_id is not None
+        }
+
+    def to_condition(self, materials: Materials) -> SimulationCondition:
+        """条件に変換する。materials には material_ids() の材料がそろっている必要がある。"""
         return SimulationCondition(
             wl_min_nm=self.wl_min,
             wl_max_nm=self.wl_max,
             wl_points=self.wl_points,
             theta_deg=self.theta_deg,
             polarization=self.pol,
-            layers=tuple(layer.to_entity() for layer in self.layers),
+            layers=tuple(layer.to_entity(materials) for layer in self.layers),
             period_nm=self.period_nm,
             num_basis=self.num_basis,
             explicit_wavelengths_nm=(

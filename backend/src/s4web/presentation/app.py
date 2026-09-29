@@ -10,6 +10,10 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from s4web.infrastructure.repositories.postgres_material_repository import (
+    ensure_database_configured,
+)
+from s4web.presentation.api.materials_router import router as materials_router
 from s4web.presentation.api.me_router import router as me_router
 from s4web.presentation.api.simulation_router import router as simulation_router
 from s4web.presentation.auth import current_user, ensure_configured
@@ -26,6 +30,7 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
     # create_app() ではなくここで確かめるのは、openapi.json の書き出しやテストのように
     # サーバーを起動しない用途を環境変数なしで動かせるようにするため。
     ensure_configured()
+    ensure_database_configured()
     yield
 
 
@@ -43,6 +48,7 @@ def create_app() -> FastAPI:
     # /api 配下はすべてログイン必須。health だけはルーターの外に置いて公開のままにする。
     app.include_router(simulation_router, prefix="/api", dependencies=[Depends(current_user)])
     app.include_router(me_router, prefix="/api", dependencies=[Depends(current_user)])
+    app.include_router(materials_router, prefix="/api", dependencies=[Depends(current_user)])
 
     @app.get("/api/health")
     def health() -> dict[str, str]:

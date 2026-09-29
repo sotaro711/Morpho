@@ -6,6 +6,7 @@
 
 from bisect import bisect_left
 from dataclasses import dataclass
+from math import isfinite
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,11 @@ class DispersionPoint:
     k: float = 0.0
 
     def __post_init__(self) -> None:
+        # nan は <= 0 も < 0 も False なので、大小の検証だけでは通ってしまう。
+        if not all(map(isfinite, (self.wavelength_nm, self.n, self.k))):
+            raise ValueError(
+                f"dispersion point must be finite, got ({self.wavelength_nm}, {self.n}, {self.k})"
+            )
         if self.wavelength_nm <= 0:
             raise ValueError(f"wavelength must be positive, got {self.wavelength_nm}")
         if self.n <= 0:

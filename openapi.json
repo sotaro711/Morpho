@@ -159,6 +159,208 @@
         ]
       }
     },
+    "/api/materials": {
+      "get": {
+        "summary": "List Materials",
+        "operationId": "list_materials_api_materials_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MaterialSummaryDTO"
+                  },
+                  "type": "array",
+                  "title": "Response List Materials Api Materials Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create Material",
+        "operationId": "create_material_api_materials_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialDTO"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/materials/{material_id}": {
+      "get": {
+        "summary": "Get Material",
+        "operationId": "get_material_api_materials__material_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "material_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Material Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialDTO"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Rename Material",
+        "operationId": "rename_material_api_materials__material_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "material_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Material Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialRenameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialSummaryDTO"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Material",
+        "operationId": "delete_material_api_materials__material_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "material_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Material Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -302,6 +504,29 @@
         "title": "DiffractionOrderDTO",
         "description": "1 つの回折次数への反射パワーの配分。"
       },
+      "DispersionPointDTO": {
+        "properties": {
+          "wavelengthNm": {
+            "type": "number",
+            "title": "Wavelengthnm"
+          },
+          "n": {
+            "type": "number",
+            "title": "N"
+          },
+          "k": {
+            "type": "number",
+            "title": "K"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wavelengthNm",
+          "n",
+          "k"
+        ],
+        "title": "DispersionPointDTO"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -326,13 +551,32 @@
             "title": "Thicknessnm"
           },
           "n": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "N"
           },
           "k": {
             "type": "number",
             "title": "K",
             "default": 0.0
+          },
+          "materialId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materialid"
           },
           "regions": {
             "items": {
@@ -346,10 +590,97 @@
         "type": "object",
         "required": [
           "name",
-          "thicknessNm",
-          "n"
+          "thicknessNm"
         ],
-        "title": "LayerDTO"
+        "title": "LayerDTO",
+        "description": "スタック中の 1 層。material_id を指定すると登録した材料を使い、n, k は不要になる。"
+      },
+      "MaterialCreateRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1048576,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "content"
+        ],
+        "title": "MaterialCreateRequest",
+        "description": "材料の登録。content はファイルの中身の文字列（読み取りはバックエンドで行う）。"
+      },
+      "MaterialDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/DispersionPointDTO"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "points",
+          "createdAt"
+        ],
+        "title": "MaterialDTO",
+        "description": "詳細用。n, k の表を含む（グラフ表示に使う）。"
+      },
+      "MaterialRenameRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "MaterialRenameRequest"
+      },
+      "MaterialSummaryDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "MaterialSummaryDTO",
+        "description": "一覧用。層の材料選択に必要なのは id と名前だけ。"
       },
       "MeResponse": {
         "properties": {
@@ -405,23 +736,41 @@
             "title": "Widthnm"
           },
           "n": {
-            "type": "number",
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "N"
           },
           "k": {
             "type": "number",
             "title": "K",
             "default": 0.0
+          },
+          "materialId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materialid"
           }
         },
         "type": "object",
         "required": [
           "xNm",
-          "widthNm",
-          "n"
+          "widthNm"
         ],
         "title": "RegionDTO",
-        "description": "層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。"
+        "description": "層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。\n\nmaterial_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。"
       },
       "SimulationRequest": {
         "properties": {

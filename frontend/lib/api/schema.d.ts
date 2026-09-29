@@ -78,6 +78,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/materials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Materials */
+        get: operations["list_materials_api_materials_get"];
+        put?: never;
+        /** Create Material */
+        post: operations["create_material_api_materials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/materials/{material_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Material */
+        get: operations["get_material_api_materials__material_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Material */
+        delete: operations["delete_material_api_materials__material_id__delete"];
+        options?: never;
+        head?: never;
+        /** Rename Material */
+        patch: operations["rename_material_api_materials__material_id__patch"];
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -153,29 +190,85 @@ export interface components {
             /** Reflectance */
             reflectance: number;
         };
+        /** DispersionPointDTO */
+        DispersionPointDTO: {
+            /** Wavelengthnm */
+            wavelengthNm: number;
+            /** N */
+            n: number;
+            /** K */
+            k: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** LayerDTO */
+        /**
+         * LayerDTO
+         * @description スタック中の 1 層。material_id を指定すると登録した材料を使い、n, k は不要になる。
+         */
         LayerDTO: {
             /** Name */
             name: string;
             /** Thicknessnm */
             thicknessNm: number;
             /** N */
-            n: number;
+            n?: number | null;
             /**
              * K
              * @default 0
              */
             k: number;
+            /** Materialid */
+            materialId?: string | null;
             /**
              * Regions
              * @default []
              */
             regions: components["schemas"]["RegionDTO"][];
+        };
+        /**
+         * MaterialCreateRequest
+         * @description 材料の登録。content はファイルの中身の文字列（読み取りはバックエンドで行う）。
+         */
+        MaterialCreateRequest: {
+            /** Name */
+            name: string;
+            /** Content */
+            content: string;
+        };
+        /**
+         * MaterialDTO
+         * @description 詳細用。n, k の表を含む（グラフ表示に使う）。
+         */
+        MaterialDTO: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Points */
+            points: components["schemas"]["DispersionPointDTO"][];
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /** MaterialRenameRequest */
+        MaterialRenameRequest: {
+            /** Name */
+            name: string;
+        };
+        /**
+         * MaterialSummaryDTO
+         * @description 一覧用。層の材料選択に必要なのは id と名前だけ。
+         */
+        MaterialSummaryDTO: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
         };
         /** MeResponse */
         MeResponse: {
@@ -198,6 +291,8 @@ export interface components {
         /**
          * RegionDTO
          * @description 層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。
+         *
+         *     material_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。
          */
         RegionDTO: {
             /** Xnm */
@@ -205,12 +300,14 @@ export interface components {
             /** Widthnm */
             widthNm: number;
             /** N */
-            n: number;
+            n?: number | null;
             /**
              * K
              * @default 0
              */
             k: number;
+            /** Materialid */
+            materialId?: string | null;
         };
         /** SimulationRequest */
         SimulationRequest: {
@@ -445,6 +542,154 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    list_materials_api_materials_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialSummaryDTO"][];
+                };
+            };
+        };
+    };
+    create_material_api_materials_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialDTO"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_material_api_materials__material_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialDTO"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_material_api_materials__material_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_material_api_materials__material_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                material_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MaterialRenameRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MaterialSummaryDTO"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

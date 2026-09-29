@@ -17,12 +17,13 @@ const PALETTE = [
 // 平面多層膜には面内の周期が無いので、断面図の横幅は表示用の公称値を使う。
 const DISPLAY_WIDTH = 100;
 
-type Optical = { n: number; k: number };
+// n は API 上は省略可（登録した材料を使う層）。表示上は未指定を「?」として扱う。
+type Optical = { n?: number | null; k: number };
 
 // 色分けのキー。名前ではなく光学定数で分けることで、同じ材料のつもりで
 // n や k を打ち間違えた層が別色になり、入力ミスに気づけるようにする(#33)。
 function materialKey({ n, k }: Optical): string {
-  return `${n}|${k}`;
+  return `${n ?? "?"}|${k}`;
 }
 
 // 出現順にパレットを割り当てる。キーの重複は最初の出現位置を優先する。
@@ -35,7 +36,8 @@ function assignColors(keys: Iterable<string>): Map<string, string> {
 }
 
 function formatIndex({ n, k }: Optical): string {
-  return k > 0 ? `n=${n}, k=${k}` : `n=${n}`;
+  const nText = n ?? "?";
+  return k > 0 ? `n=${nText}, k=${k}` : `n=${nText}`;
 }
 
 export default function StructureView({

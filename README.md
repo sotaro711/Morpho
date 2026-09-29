@@ -17,7 +17,7 @@ git clone https://github.com/sotaro711/Morpho.git
 cd Morpho
 (cd backend && uv sync)      # 初回は S4 のビルドが走ります
 (cd frontend && npm install)
-cp backend/.env.example backend/.env     # Supabase の URL を記入
+cp backend/.env.example backend/.env     # Supabase の URL と DB の接続文字列を記入
 cp frontend/.env.example frontend/.env   # Supabase の URL と publishable key を記入
 ./dev.sh                     # バックエンド :8000 / フロントエンド :3000
 ```
@@ -30,7 +30,9 @@ http://localhost:3000 でシミュレーターが開きます。API ドキュメ
 docker build -t morpho \
   --build-arg NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co \
   --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_... .
-docker run --rm -p 8080:8080 -e SUPABASE_URL=https://<project>.supabase.co morpho
+docker run --rm -p 8080:8080 \
+  -e SUPABASE_URL=https://<project>.supabase.co \
+  -e DATABASE_URL='postgresql://...:6543/postgres' morpho
 ```
 
 http://localhost:8080 で開きます。
