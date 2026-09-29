@@ -29,11 +29,9 @@ export function LoginScreen() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-xl">🦋 Morpho</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {view.name === "signUp"
-              ? "アカウントを作成"
-              : "多層膜の反射スペクトルと構造色のシミュレータ"}
-          </p>
+          {view.name === "signUp" && (
+            <p className="text-sm text-muted-foreground">アカウントを作成</p>
+          )}
         </CardHeader>
         <CardContent className="grid gap-4">
           {linkError && (

@@ -43,10 +43,7 @@ export function AppSidebar() {
                 <span className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-base">
                   🦋
                 </span>
-                <span className="grid text-left leading-tight">
-                  <span className="font-semibold">Morpho</span>
-                  <span className="text-xs text-muted-foreground">構造色シミュレータ</span>
-                </span>
+                <span className="font-semibold">Morpho</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
