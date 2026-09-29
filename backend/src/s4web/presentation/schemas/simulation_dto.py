@@ -7,6 +7,7 @@ alias_generator でこのギャップを吸収する。
 from __future__ import annotations
 
 from collections.abc import Mapping
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
@@ -34,13 +35,14 @@ Materials = Mapping[str, DispersiveMaterial]
 
 
 def _resolve_material(
-    n: float | None, k: float, material_id: str | None, materials: Materials
+    n: float | None, k: float, material_id: UUID | None, materials: Materials
 ) -> OpticalMaterial:
-    """material_id があれば登録した材料（分散）、無ければ n, k の定数材料を返す。"""
+    """material_id があれば登録した材料（分散）を優先し、無ければ n, k の定数材料を返す。"""
     if material_id is not None:
-        if material_id not in materials:
+        material = materials.get(str(material_id))
+        if material is None:
             raise ValueError("選択した材料が見つかりません。材料を選び直してください")
-        return materials[material_id]
+        return material
     if n is None:
         raise ValueError("n か materialId のどちらかが必要です")
     return Material(n=n, k=k)
@@ -56,7 +58,7 @@ class RegionDTO(_CamelModel):
     width_nm: float
     n: float | None = None
     k: float = 0.0
-    material_id: str | None = None
+    material_id: UUID | None = None
 
     def to_entity(self, materials: Materials) -> Region:
         return Region(
@@ -73,7 +75,7 @@ class LayerDTO(_CamelModel):
     thickness_nm: float
     n: float | None = None
     k: float = 0.0
-    material_id: str | None = None
+    material_id: UUID | None = None
     regions: list[RegionDTO] = []
 
     def to_entity(self, materials: Materials) -> Layer:
@@ -102,7 +104,7 @@ class SimulationRequest(_CamelModel):
     def material_ids(self) -> set[str]:
         """層・領域が参照している材料の id。"""
         return {
-            material_id
+            str(material_id)
             for layer in self.layers
             for material_id in (layer.material_id, *(r.material_id for r in layer.regions))
             if material_id is not None

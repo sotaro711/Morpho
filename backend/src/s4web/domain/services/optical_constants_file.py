@@ -8,6 +8,7 @@
 """
 
 import re
+from math import isfinite
 
 from s4web.domain.entities.material import (
     MAX_DISPERSION_POINTS,
@@ -25,10 +26,12 @@ _MIN_PLAUSIBLE_NM = 100.0
 def parse_optical_constants(text: str) -> DispersiveMaterial:
     """ファイルの内容を材料にする。読めない内容は理由を書いた ValueError。"""
     points: list[DispersionPoint] = []
-    for line in text.splitlines():
-        if not line.strip():
+    for line_no, line in enumerate(text.splitlines(), start=1):
+        # 行頭・行末の区切り文字も落とす（行末の余分なタブやカンマで空の列ができないように）。
+        stripped = line.strip(" \t\r,;")
+        if not stripped:
             continue
-        fields = _SEPARATOR.split(line.strip())
+        fields = _SEPARATOR.split(stripped)
         try:
             wavelength_nm, n = float(fields[0]), float(fields[1])
         except IndexError, ValueError:
@@ -37,9 +40,15 @@ def parse_optical_constants(text: str) -> DispersiveMaterial:
                     "波長の単位が nm ではないようです。nm に変換したファイルを使ってください"
                 ) from None
             continue  # 見出しなど、数値でない行は読み飛ばす
-        k = _optional_float(fields[2]) if len(fields) > 2 else 0.0
-        if wavelength_nm <= 0 or n <= 0 or k < 0:
-            raise ValueError(f"{wavelength_nm:g} nm の値が不正です（波長と n は正、k は 0 以上）")
+        # 小数点がカンマの「1,52」は 2 列に割れて n=1, k=52 と誤読されるので、列が多い行は拒否する。
+        if len(fields) > 3:
+            raise ValueError(f"{line_no} 行目の列が多すぎます（波長 nm、n、k の 3 列まで）")
+        try:
+            k = float(fields[2]) if len(fields) > 2 else 0.0
+        except ValueError:
+            raise ValueError(f"{line_no} 行目の k が数値ではありません") from None
+        if not all(map(isfinite, (wavelength_nm, n, k))) or wavelength_nm <= 0 or n <= 0 or k < 0:
+            raise ValueError(f"{line_no} 行目の値が不正です（波長と n は正の数、k は 0 以上）")
         points.append(DispersionPoint(wavelength_nm, n, k))
 
     if len(points) < 2:
@@ -57,8 +66,3 @@ def parse_optical_constants(text: str) -> DispersiveMaterial:
         if nxt.wavelength_nm == prev.wavelength_nm:
             raise ValueError(f"同じ波長 {prev.wavelength_nm:g} nm の行が複数あります")
     return DispersiveMaterial(tuple(points))
-
-
-def _optional_float(field: str) -> float:
-    # 行末の余分なタブで空の列ができることがある。k が空なら 0 とみなす。
-    return float(field) if field else 0.0

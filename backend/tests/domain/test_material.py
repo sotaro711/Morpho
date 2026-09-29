@@ -1,3 +1,5 @@
+import math
+
 import pytest
 
 from s4web.domain.entities.material import (
@@ -73,3 +75,15 @@ def test_dispersive_material_rejects_too_many_points() -> None:
 def test_dispersion_point_rejects_unphysical_values(n: float, k: float) -> None:
     with pytest.raises(ValueError):
         DispersionPoint(500, n, k)
+
+
+@pytest.mark.parametrize(
+    "wavelength_nm, n, k",
+    [(math.nan, 1.5, 0.0), (500, math.inf, 0.0), (500, 1.5, math.nan), (math.inf, 1.5, 0.0)],
+)
+def test_dispersion_point_rejects_nan_and_infinity(
+    wavelength_nm: float, n: float, k: float
+) -> None:
+    # nan は大小比較がすべて False になり、正・非負の検証をすり抜けるので別に弾く。
+    with pytest.raises(ValueError, match="finite"):
+        DispersionPoint(wavelength_nm, n, k)

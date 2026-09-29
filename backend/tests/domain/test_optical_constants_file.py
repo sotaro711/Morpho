@@ -23,8 +23,9 @@ def test_reads_a_completeease_export_as_is() -> None:
         "400,2.5,0.1\n500,2.4,0\n",
         "400;2.5;0.1\n500;2.4;0\n",
         "wl n k\n400\t2.5\t0.1\n500\t2.4\t0\n",
+        "400,2.5,0.1,\n500,2.4,0,\n",
     ],
-    ids=["spaces", "commas", "semicolons", "header"],
+    ids=["spaces", "commas", "semicolons", "header", "trailing comma"],
 )
 def test_accepts_common_separators_and_headers(text: str) -> None:
     material = parse_optical_constants(text)
@@ -53,7 +54,12 @@ def test_rows_are_sorted_by_wavelength() -> None:
         ("just a header\n", "2 行以上"),
         ("400 2.5 0\n400 2.4 0\n", "同じ波長"),
         ("400 0 0\n500 2.4 0\n", "不正"),
-        ("400 2.5 -0.1\n500 2.4 0\n", "不正"),
+        ("400 2.5 -0.1\n500 2.4 0\n", "1 行目の値が不正"),
+        ("400 2.5 0\nnan 2.4 0\n", "2 行目の値が不正"),
+        ("400 inf 0\n500 2.4 0\n", "1 行目の値が不正"),
+        ("400 2.5 nan\n500 2.4 0\n", "1 行目の値が不正"),
+        ("400 2.5 abc\n500 2.4 0\n", "1 行目の k が数値ではありません"),
+        ("400 1,52 0\n500 2.4 0\n", "1 行目の列が多すぎます"),
     ],
     ids=[
         "eV header",
@@ -63,6 +69,11 @@ def test_rows_are_sorted_by_wavelength() -> None:
         "duplicate",
         "n zero",
         "k negative",
+        "nan wavelength",
+        "inf n",
+        "nan k",
+        "non-numeric k",
+        "decimal comma",
     ],
 )
 def test_rejects_unreadable_files_with_a_reason(text: str, message: str) -> None:
