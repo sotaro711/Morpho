@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { RotateCw, X } from "lucide-react";
 import Link from "next/link";
 
 import { Field } from "@/components/Field";
@@ -30,7 +30,7 @@ type Props = {
  * 親のグリッドの 1 行を占める。
  */
 export function OpticsFields({ value, onChange }: Props) {
-  const { materials, loading } = useMaterials();
+  const { materials, loading, loadError, reload } = useMaterials();
 
   if (value.materialId) {
     return <SelectedMaterial value={value} onChange={onChange} />;
@@ -51,7 +51,11 @@ export function OpticsFields({ value, onChange }: Props) {
       <Field label="消衰係数 k">
         <NumberInput step={0.01} value={value.k} onChange={(k) => onChange({ k })} />
       </Field>
-      {!loading && materials.length === 0 ? (
+      {loadError ? (
+        <Button type="button" variant="outline" onClick={reload} title={loadError}>
+          材料を読み直す
+        </Button>
+      ) : !loading && materials.length === 0 ? (
         <Button variant="outline" asChild>
           <Link href="/materials">材料を登録</Link>
         </Button>
@@ -75,17 +79,18 @@ export function OpticsFields({ value, onChange }: Props) {
 }
 
 function SelectedMaterial({ value, onChange }: Props) {
-  const { materials, loading } = useMaterials();
+  const { materials, loading, loadError, reload } = useMaterials();
   const material = materials.find((m) => m.id === value.materialId);
-  // 選んでいた材料が材料ページで削除された。
-  const missing = !loading && !material;
+  // 選んでいた材料が材料ページで削除された。一覧を読めていないときは判断できないので含めない。
+  const missing = !loading && !loadError && !material;
 
   const clear = () =>
     onChange({
       materialId: null,
       // 材料を選んだあとに名前を変えていなければ、選ぶ前の名前に戻す。
+      // 削除済みだと材料名と比べられないので、そのときは選ぶ前の名前に戻す。
       name:
-        value.nameBeforeMaterial !== undefined && value.name === material?.name
+        value.nameBeforeMaterial !== undefined && (missing || value.name === material?.name)
           ? value.nameBeforeMaterial
           : value.name,
       nameBeforeMaterial: undefined,
@@ -101,18 +106,34 @@ function SelectedMaterial({ value, onChange }: Props) {
           )}
         >
           <span className="min-w-0 flex-1 truncate">
-            {material?.name ?? (missing ? "削除された材料" : "読み込み中…")}
+            {material?.name ??
+              (missing ? "削除された材料" : loadError ? "材料一覧を読み込めません" : "読み込み中…")}
           </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="-mr-2 h-7 w-7 text-muted-foreground"
-            aria-label="材料を外して n, k を入力する"
-            onClick={clear}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+          {loadError ? (
+            // 材料はまだあるかもしれないので、外させずに読み直してもらう。
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="-mr-2 h-7 w-7 text-muted-foreground"
+              aria-label="材料一覧を読み直す"
+              title={loadError}
+              onClick={reload}
+            >
+              <RotateCw className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="-mr-2 h-7 w-7 text-muted-foreground"
+              aria-label="材料を外して n, k を入力する"
+              onClick={clear}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </Field>
       {missing && (

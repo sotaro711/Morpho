@@ -19,7 +19,7 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** 登録した材料（波長ごとの n, k）の登録・一覧・グラフ・名前変更・削除。 */
 export function MaterialLibrary() {
-  const { materials, loading, loadError, add, rename, remove } = useMaterials();
+  const { materials, loading, loadError, reload, add, rename, remove } = useMaterials();
   // グラフを開いている材料（id → n, k の表）。複数を開いて見比べられる。
   // 登録直後もその材料のグラフを開き、読み込みが正しいかをその場で確かめられるようにする。
   const [opened, setOpened] = useState<Record<string, MaterialDetail>>({});
@@ -46,7 +46,14 @@ export function MaterialLibrary() {
         </CardHeader>
         <CardContent className="grid gap-2">
           {loading && <p className="text-xs text-muted-foreground">読み込み中…</p>}
-          {loadError && <p className="text-sm text-destructive">{loadError}</p>}
+          {loadError && (
+            <div className="flex items-center gap-2">
+              <p className="flex-1 text-sm text-destructive">{loadError}</p>
+              <Button type="button" variant="outline" size="sm" onClick={reload}>
+                読み直す
+              </Button>
+            </div>
+          )}
           {!loading && !loadError && materials.length === 0 && (
             <p className="text-xs text-muted-foreground">登録した材料はまだありません。</p>
           )}

@@ -21,12 +21,15 @@ function useMaterialsState() {
   const [materials, setMaterials] = useState<MaterialSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // 読み直すたびに増やして、下の effect で一覧を取り直す。
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     // 開発時の StrictMode で 2 回走っても、片付け済みの 1 回目の結果は捨てる。
     let active = true;
     listMaterials()
-      .then((list) => active && setMaterials(list))
+      // 並び順は追加・名前変更の後と同じくフロントで決める（DB の照合順序に依存させない）。
+      .then((list) => active && setMaterials([...list].sort(byName)))
       .catch(
         (e: unknown) =>
           active &&
@@ -38,7 +41,13 @@ function useMaterialsState() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt]);
+
+  const reload = () => {
+    setLoading(true);
+    setLoadError(null);
+    setAttempt((n) => n + 1);
+  };
 
   const add = async (name: string, content: string): Promise<MaterialDetail> => {
     const saved = await createMaterial(name, content);
@@ -56,7 +65,7 @@ function useMaterialsState() {
     setMaterials((prev) => prev.filter((m) => m.id !== id));
   };
 
-  return { materials, loading, loadError, add, rename, remove };
+  return { materials, loading, loadError, reload, add, rename, remove };
 }
 
 const MaterialsContext = createContext<ReturnType<typeof useMaterialsState> | null>(null);
