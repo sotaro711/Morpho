@@ -151,7 +151,9 @@ class SimulationCondition:
         if self.wl_points == 1:
             return [self.wl_min_nm]
         step = (self.wl_max_nm - self.wl_min_nm) / (self.wl_points - 1)
-        return [self.wl_min_nm + i * step for i in range(self.wl_points)]
+        # wl_min + (n-1)*step は丸め誤差で wl_max をわずかに超えることがあり、
+        # 分散データの上限ちょうどを指定した条件が範囲外扱いになる。末尾は wl_max に固定する。
+        return [*(self.wl_min_nm + i * step for i in range(self.wl_points - 1)), self.wl_max_nm]
 
 
 @dataclass(frozen=True)

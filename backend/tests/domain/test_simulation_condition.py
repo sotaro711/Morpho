@@ -42,6 +42,27 @@ def test_wavelengths_within_the_dispersion_data_are_accepted() -> None:
     _condition(Layer("film", 100, MEASURED), wl_min=400, wl_max=700)
 
 
+def test_last_sample_is_exactly_wl_max_despite_rounding() -> None:
+    # 300 + 19 * ((915 - 300) / 19) は浮動小数点では 915 をわずかに超える。
+    condition = SimulationCondition(
+        wl_min_nm=300,
+        wl_max_nm=915,
+        wl_points=20,
+        theta_deg=0.0,
+        polarization=Polarization.S,
+        layers=(
+            Layer("air", 0, AIR),
+            Layer(
+                "film",
+                100,
+                DispersiveMaterial((DispersionPoint(300, 2.4), DispersionPoint(915, 2.2))),
+            ),
+            Layer("sub", 0, SUBSTRATE),
+        ),
+    )
+    assert condition.wavelengths_nm()[-1] == 915
+
+
 @pytest.mark.parametrize("wl_min, wl_max", [(380, 700), (400, 780)], ids=["below", "above"])
 def test_wavelengths_outside_the_dispersion_data_are_rejected(wl_min: float, wl_max: float) -> None:
     with pytest.raises(ValueError, match="outside the dispersion data of layer 'film'"):
