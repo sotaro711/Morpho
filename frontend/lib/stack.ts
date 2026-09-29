@@ -24,7 +24,13 @@ export type Settings = Omit<SimulationRequest, "layers" | "thetaDeg">;
  * 層や基板の光学定数。materialId があれば登録した材料（波長分散）を使い、n, k は使わない。
  * n, k は手入力の値で、材料を選んでいる間も残しておき、手入力に戻したときに復元する。
  */
-export type Optics = { n: number; k: number; materialId?: string | null };
+export type Optics = {
+  n: number;
+  k: number;
+  materialId?: string | null;
+  /** 材料を選ぶ前の層名。材料を外したときに名前を戻すためだけに使う（API には送らない）。 */
+  nameBeforeMaterial?: string;
+};
 
 /** 入射媒質・基板（半無限）の名前と光学定数。 */
 export type Medium = { name: string } & Optics;

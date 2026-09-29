@@ -20,8 +20,14 @@ export type ColorDTO = components["schemas"]["ColorDTO"];
 export type DiffractionModes = components["schemas"]["DiffractionModesDTO"];
 
 // エディタ内部用：React の安定キーのため id を持つ層。API 送信時に id を外す。
-// API では materialId 指定時に n, k を省略できるが、エディタは常に数値を持つ。
-export type EditableLayer = LayerDTO & { id: string; n: number; k: number };
+// API では materialId 指定時に n, k を省略できるが、エディタは常に数値を持つ
+// （材料を外したときに復元するため）。nameBeforeMaterial は stack.ts の Optics を参照。
+export type EditableLayer = LayerDTO & {
+  id: string;
+  n: number;
+  k: number;
+  nameBeforeMaterial?: string;
+};
 
 /**
  * API エラーから detail を取り出して Error にする。

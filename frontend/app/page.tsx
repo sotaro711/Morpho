@@ -271,12 +271,14 @@ function MediumRow({
     <div className="grid gap-2">
       <span className="text-sm font-semibold">{label}</span>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="名前">
-          <Input
-            value={value.name}
-            onChange={(e) => onChange({ ...value, name: e.target.value })}
-          />
-        </Field>
+        <div className="col-span-full">
+          <Field label="名前">
+            <Input
+              value={value.name}
+              onChange={(e) => onChange({ ...value, name: e.target.value })}
+            />
+          </Field>
+        </div>
         <OpticsFields value={value} onChange={(patch) => onChange({ ...value, ...patch })} />
       </div>
     </div>

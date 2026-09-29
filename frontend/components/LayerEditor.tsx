@@ -91,11 +91,7 @@ export function LayerEditor({ layers, onChange }: Props) {
                 onChange={(v) => update(i, { thicknessNm: v })}
               />
             </Field>
-            <OpticsFields
-              value={layer}
-              onChange={(patch) => update(i, patch)}
-              selectClassName="col-span-2"
-            />
+            <OpticsFields value={layer} onChange={(patch) => update(i, patch)} />
           </div>
         </div>
         ))}
