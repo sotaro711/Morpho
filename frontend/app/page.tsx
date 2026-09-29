@@ -1,15 +1,15 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
 
 import { DiffractionModeToggle } from "@/components/DiffractionModeToggle";
 import { LayerEditor } from "@/components/LayerEditor";
-import { NumberInput } from "@/components/NumberInput";
+import { Field } from "@/components/Field";
+import { OpticsFields } from "@/components/OpticsFields";
 import { PairInsertForm } from "@/components/PairInsertForm";
 import { SettingsForm } from "@/components/SettingsForm";
+import { useSimulator } from "@/components/SimulatorProvider";
 import { StepEditor } from "@/components/StepEditor";
-import { UserMenu } from "@/components/UserMenu";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,29 +18,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import type { EditableLayer, SweepResponse } from "@/lib/api/client";
+import type { SweepResponse } from "@/lib/api/client";
 import {
   entryColor,
   hasDiffractionModes,
   type DiffractionMode,
 } from "@/lib/diffraction";
-import { useSweep } from "@/lib/hooks/use-sweep";
-import {
-  DEFAULT_FILMS,
-  DEFAULT_SETTINGS,
-  DEFAULT_SUBSTRATE,
-  structureLayers,
-  type Medium,
-  type Settings,
-} from "@/lib/stack";
-import {
-  DEFAULT_STEPPED,
-  isStepped,
-  structureColumns,
-  toSteppedSimulationRequest,
-  type SteppedConfig,
-} from "@/lib/stepped";
+import { structureLayers, type Medium, type Settings } from "@/lib/stack";
+import { isStepped, structureColumns, toSteppedSimulationRequest } from "@/lib/stepped";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const StructureView = dynamic(() => import("@/components/StructureView"), {
@@ -64,14 +49,20 @@ const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
 const ANGLE_SWEEP_WL = { wavelengthsNm: [400, 470, 540, 600, 700] };
 
 export default function Home() {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [substrate, setSubstrate] = useState<Medium>(DEFAULT_SUBSTRATE);
-  const [films, setFilms] = useState<EditableLayer[]>(DEFAULT_FILMS);
-  const [stepped, setStepped] = useState<SteppedConfig>(DEFAULT_STEPPED);
-  // 表示する回折次数の見方（0次のみ / 0次以外 / 全次数）。表示だけの切替で再計算はしない。
-  const [mode, setMode] = useState<DiffractionMode>("zeroth");
-  const colorsSweep = useSweep(); // 色チップ + 角度別スペクトル
-  const anglesSweep = useSweep(); // 角度スイープチャート
+  const {
+    settings,
+    setSettings,
+    substrate,
+    setSubstrate,
+    films,
+    setFilms,
+    stepped,
+    setStepped,
+    mode,
+    setMode,
+    colorsSweep,
+    anglesSweep,
+  } = useSimulator();
   const loading = colorsSweep.loading || anglesSweep.loading;
   const error = colorsSweep.error ?? anglesSweep.error;
 
@@ -100,14 +91,8 @@ export default function Home() {
   };
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-8">
-      <header className="flex items-center gap-3">
-        <div className="h-8 w-1.5 rounded-full bg-primary" />
-        <h1 className="text-2xl font-bold tracking-tight">🦋 Morpho</h1>
-        <UserMenu />
-      </header>
-
-      <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(420px,460px)_1fr]">
+    <div className="mx-auto w-full max-w-6xl px-6 py-6">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(420px,460px)_1fr]">
         {/* 左：入力 */}
         <div className="grid min-w-0 gap-6">
           <Card>
@@ -242,7 +227,7 @@ export default function Home() {
           )}
         </div>
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -283,30 +268,18 @@ function MediumRow({
   onChange: (v: Medium) => void;
 }) {
   return (
-    <div className="grid grid-cols-[auto_1fr_1fr_1fr] items-end gap-2">
-      <span className="pb-2 text-sm font-semibold">{label}</span>
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">名前</Label>
-        <Input
-          value={value.name}
-          onChange={(e) => onChange({ ...value, name: e.target.value })}
-        />
-      </div>
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">屈折率 n</Label>
-        <NumberInput
-          step={0.01}
-          value={value.n}
-          onChange={(n) => onChange({ ...value, n })}
-        />
-      </div>
-      <div className="grid gap-1">
-        <Label className="text-xs text-muted-foreground">消衰係数 k</Label>
-        <NumberInput
-          step={0.01}
-          value={value.k}
-          onChange={(k) => onChange({ ...value, k })}
-        />
+    <div className="grid gap-2">
+      <span className="text-sm font-semibold">{label}</span>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="col-span-full">
+          <Field label="名前">
+            <Input
+              value={value.name}
+              onChange={(e) => onChange({ ...value, name: e.target.value })}
+            />
+          </Field>
+        </div>
+        <OpticsFields value={value} onChange={(patch) => onChange({ ...value, ...patch })} />
       </div>
     </div>
   );

@@ -4,7 +4,12 @@ const isStaticExport = process.env.NEXT_OUTPUT === "export";
 
 const nextConfig: NextConfig = {
   ...(isStaticExport
-    ? { output: "export" as const }
+    ? {
+        output: "export" as const,
+        // /materials を materials/index.html として書き出す。FastAPI の StaticFiles（html=True）は
+        // ディレクトリの index.html しか返さず、materials.html を /materials で配信できないため。
+        trailingSlash: true,
+      }
     : {
         // フロントの /api/* を FastAPI バックエンド (:8000) へプロキシする。
         // 同一オリジンになるため CORS 設定が不要になる。
