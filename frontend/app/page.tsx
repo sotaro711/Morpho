@@ -1,13 +1,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
 
 import { DiffractionModeToggle } from "@/components/DiffractionModeToggle";
 import { LayerEditor } from "@/components/LayerEditor";
 import { NumberInput } from "@/components/NumberInput";
 import { PairInsertForm } from "@/components/PairInsertForm";
 import { SettingsForm } from "@/components/SettingsForm";
+import { useSimulator } from "@/components/SimulatorProvider";
 import { StepEditor } from "@/components/StepEditor";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,28 +18,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { EditableLayer, SweepResponse } from "@/lib/api/client";
+import type { SweepResponse } from "@/lib/api/client";
 import {
   entryColor,
   hasDiffractionModes,
   type DiffractionMode,
 } from "@/lib/diffraction";
-import { useSweep } from "@/lib/hooks/use-sweep";
-import {
-  DEFAULT_FILMS,
-  DEFAULT_SETTINGS,
-  DEFAULT_SUBSTRATE,
-  structureLayers,
-  type Medium,
-  type Settings,
-} from "@/lib/stack";
-import {
-  DEFAULT_STEPPED,
-  isStepped,
-  structureColumns,
-  toSteppedSimulationRequest,
-  type SteppedConfig,
-} from "@/lib/stepped";
+import { structureLayers, type Medium, type Settings } from "@/lib/stack";
+import { isStepped, structureColumns, toSteppedSimulationRequest } from "@/lib/stepped";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const StructureView = dynamic(() => import("@/components/StructureView"), {
@@ -63,14 +49,20 @@ const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
 const ANGLE_SWEEP_WL = { wavelengthsNm: [400, 470, 540, 600, 700] };
 
 export default function Home() {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [substrate, setSubstrate] = useState<Medium>(DEFAULT_SUBSTRATE);
-  const [films, setFilms] = useState<EditableLayer[]>(DEFAULT_FILMS);
-  const [stepped, setStepped] = useState<SteppedConfig>(DEFAULT_STEPPED);
-  // 表示する回折次数の見方（0次のみ / 0次以外 / 全次数）。表示だけの切替で再計算はしない。
-  const [mode, setMode] = useState<DiffractionMode>("zeroth");
-  const colorsSweep = useSweep(); // 色チップ + 角度別スペクトル
-  const anglesSweep = useSweep(); // 角度スイープチャート
+  const {
+    settings,
+    setSettings,
+    substrate,
+    setSubstrate,
+    films,
+    setFilms,
+    stepped,
+    setStepped,
+    mode,
+    setMode,
+    colorsSweep,
+    anglesSweep,
+  } = useSimulator();
   const loading = colorsSweep.loading || anglesSweep.loading;
   const error = colorsSweep.error ?? anglesSweep.error;
 
