@@ -23,13 +23,17 @@ export type DiffractionModes = components["schemas"]["DiffractionModesDTO"];
 // API では materialId 指定時に n, k を省略できるが、エディタは常に数値を持つ。
 export type EditableLayer = LayerDTO & { id: string; n: number; k: number };
 
-/** API エラーから detail を取り出して Error にする。 */
+/**
+ * API エラーから detail を取り出して Error にする。
+ * 文字列の detail はバックエンドが日本語の文言で返したものなので、そのまま表示する。
+ * それ以外（Pydantic の検証エラーの配列など）は JSON にして見えるようにする。
+ */
 function toError(error: unknown): Error {
-  const detail =
-    typeof error === "object" && error !== null && "detail" in error
-      ? JSON.stringify((error as { detail: unknown }).detail)
-      : String(error);
-  return new Error(detail);
+  if (typeof error !== "object" || error === null || !("detail" in error)) {
+    return new Error(String(error));
+  }
+  const { detail } = error;
+  return new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
 }
 
 /** シミュレーションを実行する。失敗時は detail を含む Error を投げる。 */
@@ -46,4 +50,49 @@ export async function simulateSweep(body: SweepRequest): Promise<SweepResponse> 
   const { data, error } = await apiClient.POST("/api/simulate/sweep", { body });
   if (error) throw toError(error);
   return data;
+}
+
+export type MaterialSummary = components["schemas"]["MaterialSummaryDTO"];
+export type MaterialDetail = components["schemas"]["MaterialDTO"];
+export type DispersionPoint = components["schemas"]["DispersionPointDTO"];
+
+/** ログイン中のユーザーが登録した材料の一覧（id と名前）。名前順。 */
+export async function listMaterials(): Promise<MaterialSummary[]> {
+  const { data, error } = await apiClient.GET("/api/materials");
+  if (error) throw toError(error);
+  return data;
+}
+
+/** 材料の詳細（n, k の表）。 */
+export async function getMaterial(id: string): Promise<MaterialDetail> {
+  const { data, error } = await apiClient.GET("/api/materials/{material_id}", {
+    params: { path: { material_id: id } },
+  });
+  if (error) throw toError(error);
+  return data;
+}
+
+/** 材料を登録する。content はファイルの中身（読み取りはバックエンドで行う）。 */
+export async function createMaterial(name: string, content: string): Promise<MaterialDetail> {
+  const { data, error } = await apiClient.POST("/api/materials", { body: { name, content } });
+  if (error) throw toError(error);
+  return data;
+}
+
+/** 材料の名前を変える。 */
+export async function renameMaterial(id: string, name: string): Promise<MaterialSummary> {
+  const { data, error } = await apiClient.PATCH("/api/materials/{material_id}", {
+    params: { path: { material_id: id } },
+    body: { name },
+  });
+  if (error) throw toError(error);
+  return data;
+}
+
+/** 材料を削除する。 */
+export async function deleteMaterial(id: string): Promise<void> {
+  const { error } = await apiClient.DELETE("/api/materials/{material_id}", {
+    params: { path: { material_id: id } },
+  });
+  if (error) throw toError(error);
 }

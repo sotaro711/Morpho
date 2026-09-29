@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import { AppSidebar, NAV_ITEMS, normalizePath } from "@/components/AppSidebar";
+import { MaterialsProvider } from "@/components/MaterialsProvider";
 import { SimulatorProvider } from "@/components/SimulatorProvider";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -23,7 +24,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
             <h1 className="text-sm font-semibold">{title}</h1>
           </header>
-          <SimulatorProvider>{children}</SimulatorProvider>
+          <MaterialsProvider>
+            <SimulatorProvider>{children}</SimulatorProvider>
+          </MaterialsProvider>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
