@@ -51,19 +51,10 @@ export const DEFAULT_SETTINGS: Settings = {
   numBasis: 1, // 平面多層膜は 0 次のみで厳密（周期構造対応時に増やす）
 };
 
-/** 既定の多層膜（films）。id は固定（SSR/ハイドレーションのズレ回避）。 */
-export const DEFAULT_FILMS: EditableLayer[] = [
-  {
-    id: "default-film",
-    name: "film",
-    thicknessNm: 150,
-    n: 2.5,
-    k: 0,
-    regions: [],
-  },
-];
+/** 既定の多層膜（films）。最初は膜なしで、基板だけから始める。 */
+export const DEFAULT_FILMS: EditableLayer[] = [];
 
-export const DEFAULT_SUBSTRATE: Medium = { name: "SUS", n: 1.71, k: 2.88 };
+export const DEFAULT_SUBSTRATE: Medium = { name: "樹脂", n: 1.5, k: 0 };
 
 // 入射媒質は空気に固定（光が入ってくる側。UI には出さない）。
 const INCIDENT_AIR: Medium = { name: "空気", n: 1.0, k: 0 };
