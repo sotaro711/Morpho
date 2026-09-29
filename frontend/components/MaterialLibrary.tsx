@@ -4,6 +4,7 @@ import { Check, ChartLine, Pencil, Trash2, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
+import { FileDropZone } from "@/components/FileDropZone";
 import { useMaterials } from "@/components/MaterialsProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,8 +87,6 @@ function RegisterForm({
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  // 登録後にファイル入力を空に戻すため、key を変えて input を作り直す。
-  const [inputKey, setInputKey] = useState(0);
 
   const pick = (picked: File | null) => {
     setFile(picked);
@@ -105,7 +104,6 @@ function RegisterForm({
       await onRegister(name, await file.text());
       setFile(null);
       setName("");
-      setInputKey((k) => k + 1);
     } catch (err) {
       setError(message(err));
     } finally {
@@ -115,20 +113,13 @@ function RegisterForm({
 
   return (
     <form onSubmit={submit} className="grid gap-2">
-      <div className="grid gap-1">
-        <Input
-          key={inputKey}
-          id="material-file"
-          type="file"
-          accept=".txt,.csv,.dat,.tsv,.nk,text/plain,text/csv"
-          aria-label="光学定数ファイル"
-          aria-describedby="material-file-format"
-          onChange={(e) => pick(e.target.files?.[0] ?? null)}
-        />
-        <p id="material-file-format" className="text-xs text-muted-foreground">
-          波長 nm・n・k の 3 列
-        </p>
-      </div>
+      <FileDropZone
+        file={file}
+        onChange={pick}
+        accept=".txt,.csv,.dat,.tsv,.nk,text/plain,text/csv"
+        label="光学定数ファイル"
+        hint="波長 nm・n・k の 3 列"
+      />
       {file && (
         <div className="grid grid-cols-[1fr_auto] items-end gap-2">
           <div className="grid gap-1">
