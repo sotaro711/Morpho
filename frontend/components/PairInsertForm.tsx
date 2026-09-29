@@ -4,13 +4,15 @@ import { useState } from "react";
 
 import { Field } from "@/components/Field";
 import { NumberInput } from "@/components/NumberInput";
+import { OpticsFields } from "@/components/OpticsFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { EditableLayer } from "@/lib/api/client";
+import type { Optics } from "@/lib/stack";
 
-// ペア挿入フォームの1層分（名前・厚さ・n・k）。
-type PairLayer = { name: string; thicknessNm: number; n: number; k: number };
+// ペア挿入フォームの1層分（名前・厚さ・光学定数）。
+type PairLayer = { name: string; thicknessNm: number } & Optics;
 
 type Props = {
   onInsert: (block: EditableLayer[]) => void;
@@ -55,6 +57,7 @@ export function PairInsertForm({ onInsert }: Props) {
   );
 }
 
+/** 多層膜の層と同じ 2 段の形（名前・厚さ / n・k・材料）。 */
 function PairRow({
   label,
   value,
@@ -65,34 +68,23 @@ function PairRow({
   onChange: (v: PairLayer) => void;
 }) {
   return (
-    <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] items-end gap-2">
-      <span className="pb-2 text-xs text-muted-foreground">{label}</span>
-      <Field label="名前">
-        <Input
-          value={value.name}
-          onChange={(e) => onChange({ ...value, name: e.target.value })}
-        />
-      </Field>
-      <Field label="厚さ (nm)">
-        <NumberInput
-          value={value.thicknessNm}
-          onChange={(v) => onChange({ ...value, thicknessNm: v })}
-        />
-      </Field>
-      <Field label="屈折率 n">
-        <NumberInput
-          step={0.01}
-          value={value.n}
-          onChange={(v) => onChange({ ...value, n: v })}
-        />
-      </Field>
-      <Field label="消衰係数 k">
-        <NumberInput
-          step={0.01}
-          value={value.k}
-          onChange={(v) => onChange({ ...value, k: v })}
-        />
-      </Field>
+    <div className="rounded-lg border p-3">
+      <span className="mb-2 block text-sm font-semibold">{label}</span>
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="名前">
+          <Input
+            value={value.name}
+            onChange={(e) => onChange({ ...value, name: e.target.value })}
+          />
+        </Field>
+        <Field label="厚さ (nm)">
+          <NumberInput
+            value={value.thicknessNm}
+            onChange={(v) => onChange({ ...value, thicknessNm: v })}
+          />
+        </Field>
+        <OpticsFields value={value} onChange={(patch) => onChange({ ...value, ...patch })} />
+      </div>
     </div>
   );
 }

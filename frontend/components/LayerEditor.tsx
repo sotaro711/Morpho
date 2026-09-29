@@ -4,6 +4,7 @@ import { Trash2 } from "lucide-react";
 
 import { Field } from "@/components/Field";
 import { NumberInput } from "@/components/NumberInput";
+import { OpticsFields } from "@/components/OpticsFields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { EditableLayer } from "@/lib/api/client";
@@ -90,20 +91,7 @@ export function LayerEditor({ layers, onChange }: Props) {
                 onChange={(v) => update(i, { thicknessNm: v })}
               />
             </Field>
-            <Field label="屈折率 n">
-              <NumberInput
-                step={0.01}
-                value={layer.n}
-                onChange={(v) => update(i, { n: v })}
-              />
-            </Field>
-            <Field label="消衰係数 k">
-              <NumberInput
-                step={0.01}
-                value={layer.k}
-                onChange={(v) => update(i, { k: v })}
-              />
-            </Field>
+            <OpticsFields value={layer} onChange={(patch) => update(i, patch)} />
           </div>
         </div>
         ))}
