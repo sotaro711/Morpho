@@ -36,3 +36,7 @@ docker run --rm -p 8080:8080 \
 ```
 
 http://localhost:8080 で開きます。
+
+## アーキテクチャ
+
+![Morpho のアーキテクチャ](docs/architecture.drawio.svg)
