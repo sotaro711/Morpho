@@ -15,21 +15,25 @@ import {
  * 結果表示は 2 種類のスイープ(色+スペクトル用 / 角度チャート用)を使うため、
  * 呼び出し側でこのフックを 2 インスタンス並べて使う。
  * clear() は段差なしに戻したとき等に古い結果を消すためにある。
+ * run() は結果（失敗時は null）も返す。両方の結果がそろったら保存する、のように続けるため。
  */
 export function useSweep() {
   const [result, setResult] = useState<SweepResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const run = async (body: SweepRequest) => {
+  const run = async (body: SweepRequest): Promise<SweepResponse | null> => {
     setLoading(true);
     setError(null);
     setResult(null);
     try {
-      setResult(await simulateSweep(body));
+      const response = await simulateSweep(body);
+      setResult(response);
+      return response;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setResult(null);
+      return null;
     } finally {
       setLoading(false);
     }

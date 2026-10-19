@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useState } from "react";
 
 import { DiffractionModeToggle } from "@/components/DiffractionModeToggle";
 import { LayerEditor } from "@/components/LayerEditor";
@@ -18,7 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { SweepResponse } from "@/lib/api/client";
+import { saveResult, type SweepResponse } from "@/lib/api/client";
 import {
   entryColor,
   hasDiffractionModes,
@@ -63,6 +64,7 @@ export default function Home() {
     colorsSweep,
     anglesSweep,
   } = useSimulator();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const loading = colorsSweep.loading || anglesSweep.loading;
   const error = colorsSweep.error ?? anglesSweep.error;
 
@@ -76,18 +78,26 @@ export default function Home() {
     // 待ち行列に入った方がプロキシタイムアウトに達するリスクだけが増えるため。
     // 2 本目の run が始まるまで前回の角度チャートが残らないよう、先に消しておく。
     anglesSweep.clear();
-    await colorsSweep.run({
+    setSaveError(null);
+    const colors = await colorsSweep.run({
       ...base,
       ...COLOR_SWEEP_WL,
       thetaDegs: COLOR_THETAS,
       includeColors: true,
     });
-    await anglesSweep.run({
+    const angles = await anglesSweep.run({
       ...base,
       ...ANGLE_SWEEP_WL,
       thetaDegs: ANGLE_THETAS,
       includeColors: false,
     });
+    if (!colors || !angles) return;
+    // 計算はすべて保存して履歴にする。保存に失敗しても計算結果の表示は続ける。
+    try {
+      await saveResult({ request: base, colors, angles });
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   return (
@@ -149,6 +159,11 @@ export default function Home() {
               >
                 エラー: {error}
               </div>
+            )}
+            {saveError && (
+              <p role="status" className="text-xs text-muted-foreground">
+                結果を保存できませんでした: {saveError}
+              </p>
             )}
           </div>
         </div>
