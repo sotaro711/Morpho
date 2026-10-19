@@ -23,22 +23,26 @@ export function ResultHistory() {
   const [results, setResults] = useState<ResultSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  const reload = async () => {
-    setLoading(true);
-    setLoadError(null);
-    try {
-      setResults(await listResults());
-    } catch (e) {
-      setLoadError(message(e));
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 読み直すたびに増やして、下の effect で一覧を取り直す。
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    reload();
-  }, []);
+    // 開発時の StrictMode で 2 回走っても、片付け済みの 1 回目の結果は捨てる。
+    let active = true;
+    listResults()
+      .then((list) => active && setResults(list))
+      .catch((e: unknown) => active && setLoadError(message(e)))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [attempt]);
+
+  const reload = () => {
+    setLoading(true);
+    setLoadError(null);
+    setAttempt((n) => n + 1);
+  };
 
   const remove = async (id: string) => {
     await deleteResult(id);
