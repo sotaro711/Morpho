@@ -11,8 +11,8 @@ from typing import Any
 
 from s4web.domain.entities.material import DispersiveMaterial
 
-# 計算結果の型として、presantation層にSweepResponseがあるが、domainからpresantation層に依存させないようにしている（依存の向きが逆になってしまう）
-# 二重管理にもなってしまう
+# 計算結果の型として presentation 層に SweepResponse があるが、domain から presentation 層に
+# 依存させないようにしている（依存の向きが逆になってしまう）。二重管理にもなってしまう
 Json = Mapping[str, Any]
 
 
