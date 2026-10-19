@@ -25,7 +25,7 @@ class SaveResultUseCase:
         self._results = results
 
     def execute(self, owner_id: str, request: Json, colors: Json, angles: Json) -> SavedResult:
-        """材料が見つからなければ ValueError（ResultDraft が出す）。"""
+        """材料が見つからなければ MissingMaterialError（ResultDraft が出す）。"""
         ids = referenced_material_ids(request)
         materials = {}
         if ids:

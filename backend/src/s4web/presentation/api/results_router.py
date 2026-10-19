@@ -8,6 +8,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from s4web.application.usecases.save_result import SaveResultUseCase
+from s4web.domain.entities.saved_result import MissingMaterialError
 from s4web.domain.ports.result_repository import ResultRepository, ResultTooLargeError
 from s4web.presentation.auth import AuthenticatedUser, current_user
 from s4web.presentation.dependencies import (
@@ -52,7 +53,7 @@ def create_result(
         saved = SaveResultUseCase(open_materials, repository).execute(
             user.id, request, colors, angles
         )
-    except ValueError as exc:
+    except MissingMaterialError as exc:
         raise HTTPException(
             status_code=422, detail="選択した材料が見つかりません。材料を選び直してください"
         ) from exc

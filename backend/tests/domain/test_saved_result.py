@@ -1,7 +1,11 @@
 import pytest
 
 from s4web.domain.entities.material import DispersionPoint, DispersiveMaterial
-from s4web.domain.entities.saved_result import ResultDraft, referenced_material_ids
+from s4web.domain.entities.saved_result import (
+    MissingMaterialError,
+    ResultDraft,
+    referenced_material_ids,
+)
 
 _TABLE = DispersiveMaterial((DispersionPoint(300, 2.4), DispersionPoint(900, 2.2)))
 
@@ -24,5 +28,5 @@ def test_draft_accepts_constant_materials_without_snapshots() -> None:
 
 def test_draft_rejects_missing_material_snapshot() -> None:
     request = _request({"name": "film", "materialId": "a"}, {"name": "sub", "materialId": "b"})
-    with pytest.raises(ValueError, match="材料のデータがありません: b"):
+    with pytest.raises(MissingMaterialError, match="材料のデータがありません: b"):
         ResultDraft(request, {"a": _TABLE}, colors={}, angles={})

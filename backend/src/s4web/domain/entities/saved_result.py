@@ -30,6 +30,10 @@ def referenced_material_ids(request: Json) -> set[str]:
     }
 
 
+class MissingMaterialError(ValueError):
+    """計算条件が参照している材料のデータがない（所有者の材料として見つからない）。"""
+
+
 @dataclass(frozen=True)
 class ResultDraft:
     """これから保存する計算結果。
@@ -48,7 +52,9 @@ class ResultDraft:
     def __post_init__(self) -> None:
         missing = referenced_material_ids(self.request) - set(self.materials)
         if missing:
-            raise ValueError(f"参照している材料のデータがありません: {', '.join(sorted(missing))}")
+            raise MissingMaterialError(
+                f"参照している材料のデータがありません: {', '.join(sorted(missing))}"
+            )
 
 
 @dataclass(frozen=True)

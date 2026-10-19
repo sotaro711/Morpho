@@ -7,7 +7,7 @@ import pytest
 from s4web.application.usecases.save_result import SaveResultUseCase
 from s4web.domain.entities.material import DispersionPoint, DispersiveMaterial
 from s4web.domain.entities.saved_material import MaterialDraft, SavedMaterial
-from s4web.domain.entities.saved_result import ResultDraft, SavedResult
+from s4web.domain.entities.saved_result import MissingMaterialError, ResultDraft, SavedResult
 from s4web.domain.ports.material_repository import MaterialRepository
 from s4web.domain.ports.result_repository import ResultRepository
 
@@ -89,6 +89,6 @@ def test_rejects_materials_of_other_owners() -> None:
     results = _Results()
     request = {"layers": [{"name": "film", "materialId": "m1"}]}
 
-    with pytest.raises(ValueError):
+    with pytest.raises(MissingMaterialError):
         _use_case(_Materials({"m1": TABLE}), results).execute("other", request, {}, {})
     assert results.added == []
