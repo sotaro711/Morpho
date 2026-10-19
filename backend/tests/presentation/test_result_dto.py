@@ -1,11 +1,12 @@
 from datetime import UTC, datetime
 
-from s4web.domain.entities.saved_result import ResultDraft, SavedResult
+from s4web.domain.entities.saved_result import ResultDraft, SavedResult, referenced_material_ids
 from s4web.presentation.schemas.result_dto import (
     ResultCreateRequest,
     ResultDTO,
     ResultSummaryDTO,
 )
+from s4web.presentation.schemas.simulation_dto import SimulationRequest
 
 _SWEEP = {
     "wavelengths": [380.0, 390.0],
@@ -55,3 +56,32 @@ def test_detail_reads_back_what_was_saved() -> None:
 def test_summary_lists_only_entries_with_colors() -> None:
     dto = ResultSummaryDTO.from_entity(_saved())
     assert [(c.theta_deg, c.color.hex) for c in dto.colors] == [(0, "#010203")]
+
+
+def test_referenced_material_ids_matches_simulation_request() -> None:
+    # domain は presentation に依存できないので同じ処理を 2 か所に持っている。食い違うと
+    # 計算に使った材料が保存されないので、同じ request で結果がそろうことを確かめる。
+    id_a = "0f6d1a4e-6d8e-4d1c-9a3b-2c5f7e8a9b01"
+    id_b = "0f6d1a4e-6d8e-4d1c-9a3b-2c5f7e8a9b02"
+    id_c = "0f6d1a4e-6d8e-4d1c-9a3b-2c5f7e8a9b03"
+    body = {
+        "wlMin": 380,
+        "wlMax": 780,
+        "wlPoints": 41,
+        "layers": [
+            {"name": "air", "thicknessNm": 0, "n": 1},
+            {
+                "name": "grating",
+                "thicknessNm": 100,
+                "materialId": id_a,
+                "regions": [
+                    {"xNm": 0, "widthNm": 100, "materialId": id_b},
+                    {"xNm": 100, "widthNm": 100, "n": 1.5},
+                ],
+            },
+            {"name": "sub", "thicknessNm": 0, "materialId": id_c},
+        ],
+    }
+    request = SimulationRequest.model_validate(body)
+    dumped = request.model_dump(mode="json", by_alias=True)
+    assert referenced_material_ids(dumped) == request.material_ids() == {id_a, id_b, id_c}
