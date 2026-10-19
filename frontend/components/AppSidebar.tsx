@@ -25,6 +25,9 @@ export const NAV_ITEMS = [
   { href: "/history", label: "履歴", icon: History },
 ] as const;
 
+// Vercel のサイドバーに合わせ、項目を 36px の高さで少し間を空けて並べる。
+const ITEM_CLASS = "h-9 gap-3 px-3";
+
 /** 静的書き出しでは末尾に / が付くので、比較の前にそろえる。 */
 export function normalizePath(pathname: string): string {
   return pathname.replace(/\/+$/, "") || "/";
@@ -54,10 +57,15 @@ export function AppSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
-                  <SidebarMenuButton asChild isActive={pathname === href} tooltip={label}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === href}
+                    tooltip={label}
+                    className={ITEM_CLASS}
+                  >
                     <Link href={href}>
                       <Icon />
                       <span>{label}</span>
@@ -81,7 +89,11 @@ export function AppSidebar() {
             </p>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="ログアウト" onClick={() => supabase.auth.signOut()}>
+            <SidebarMenuButton
+              tooltip="ログアウト"
+              className={ITEM_CLASS}
+              onClick={() => supabase.auth.signOut()}
+            >
               <LogOut />
               <span>ログアウト</span>
             </SidebarMenuButton>
