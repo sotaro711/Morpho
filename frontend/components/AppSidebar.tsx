@@ -1,6 +1,6 @@
 "use client";
 
-import { FlaskConical, LogOut, Sigma } from "lucide-react";
+import { FlaskConical, History, LogOut, Sigma } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -22,6 +22,7 @@ import { supabase } from "@/lib/supabase";
 export const NAV_ITEMS = [
   { href: "/", label: "計算", icon: Sigma },
   { href: "/materials", label: "材料", icon: FlaskConical },
+  { href: "/history", label: "履歴", icon: History },
 ] as const;
 
 /** 静的書き出しでは末尾に / が付くので、比較の前にそろえる。 */

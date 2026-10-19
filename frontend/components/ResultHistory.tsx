@@ -1,0 +1,163 @@
+"use client";
+
+import { Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  deleteResult,
+  listResults,
+  type ResultSummary,
+  type SimulationRequest,
+} from "@/lib/api/client";
+
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** 計算の履歴（計算するたびに自動で保存される結果）の一覧と削除。 */
+export function ResultHistory() {
+  const [results, setResults] = useState<ResultSummary[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const reload = async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      setResults(await listResults());
+    } catch (e) {
+      setLoadError(message(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reload();
+  }, []);
+
+  const remove = async (id: string) => {
+    await deleteResult(id);
+    setResults((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">履歴</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-2">
+        {loading && <p className="text-xs text-muted-foreground">読み込み中…</p>}
+        {loadError && (
+          <div className="flex items-center gap-2">
+            <p className="flex-1 text-sm text-destructive">{loadError}</p>
+            <Button type="button" variant="outline" size="sm" onClick={reload}>
+              読み直す
+            </Button>
+          </div>
+        )}
+        {!loading && !loadError && results.length === 0 && (
+          <p className="text-xs text-muted-foreground">まだ計算していません。</p>
+        )}
+        {results.map((r) => (
+          <ResultRow key={r.id} result={r} onDelete={() => remove(r.id)} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** 一覧に出す構成の要約。層の先頭は入射側の空気、末尾は基板。 */
+function describe(request: SimulationRequest): string {
+  const substrate = request.layers[request.layers.length - 1]?.name;
+  const structure =
+    request.periodNm != null
+      ? `段差あり（周期 ${request.periodNm} nm）`
+      : `膜 ${Math.max(request.layers.length - 2, 0)} 層`;
+  return [
+    structure,
+    `基板 ${substrate}`,
+    `${request.wlMin}–${request.wlMax} nm`,
+    `${request.pol} 偏光`,
+  ].join(" ・ ");
+}
+
+function ResultRow({
+  result,
+  onDelete,
+}: {
+  result: ResultSummary;
+  onDelete: () => Promise<void>;
+}) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const confirmDelete = async () => {
+    setError(null);
+    try {
+      await onDelete();
+    } catch (e) {
+      setError(message(e));
+      setConfirmingDelete(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border p-2">
+      <div className="flex items-center gap-3">
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <span className="text-sm font-medium">
+            {new Date(result.createdAt).toLocaleString("ja-JP")}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">
+            {describe(result.request)}
+          </span>
+        </div>
+
+        <div className="flex gap-1.5">
+          {result.colors.map((c) => (
+            <div key={c.thetaDeg} className="grid justify-items-center gap-0.5">
+              <div
+                className="h-6 w-6 rounded border"
+                style={{ backgroundColor: c.color.hex }}
+                title={c.color.hex}
+              />
+              <span className="text-[10px] text-muted-foreground">
+                {Math.round(c.thetaDeg)}°
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {confirmingDelete ? (
+          <div className="flex items-center gap-1 text-xs">
+            <span className="text-muted-foreground">削除しますか？</span>
+            <Button type="button" variant="destructive" size="xs" onClick={confirmDelete}>
+              削除
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="xs"
+              onClick={() => setConfirmingDelete(false)}
+            >
+              やめる
+            </Button>
+          </div>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            aria-label="この結果を削除"
+            onClick={() => setConfirmingDelete(true)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+    </div>
+  );
+}
