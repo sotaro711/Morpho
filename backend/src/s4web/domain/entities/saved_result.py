@@ -15,6 +15,7 @@ from s4web.domain.entities.material import DispersiveMaterial
 # 二重管理にもなってしまう
 Json = Mapping[str, Any]
 
+
 # フロントから届いたJSONを辞書 -> その中からmaterualIdを集めている
 def referenced_material_ids(request: Json) -> set[str]:
     """リクエストの層・領域が参照している材料の id。"""

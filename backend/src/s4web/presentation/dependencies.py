@@ -11,6 +11,7 @@ from contextlib import AbstractContextManager, contextmanager
 
 from s4web.domain.ports.colorimetry_port import ColorimetryPort
 from s4web.domain.ports.material_repository import MaterialRepository
+from s4web.domain.ports.result_repository import ResultRepository
 from s4web.domain.ports.solver_port import SolverPort
 
 
@@ -54,3 +55,12 @@ def get_material_repository_factory() -> MaterialRepositoryFactory:
 def get_material_repository() -> Iterator[MaterialRepository]:
     with get_material_repository_factory()() as repository:
         yield repository
+
+
+def get_result_repository() -> ResultRepository:
+    from s4web.infrastructure.repositories.firestore_result_repository import (
+        FirestoreResultRepository,
+        client,
+    )
+
+    return FirestoreResultRepository(client())
