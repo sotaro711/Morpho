@@ -1,20 +1,24 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { ChevronRight, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { ResultDetail } from "@/components/ResultDetail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   deleteResult,
+  getResult,
   listResults,
+  type ResultDetail as Detail,
   type ResultSummary,
   type SimulationRequest,
 } from "@/lib/api/client";
+import { cn } from "@/lib/utils";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** 計算の履歴（計算するたびに自動で保存される結果）の一覧と削除。 */
+/** 計算の履歴（計算するたびに自動で保存される結果）の一覧・詳細・削除。 */
 export function ResultHistory() {
   const [results, setResults] = useState<ResultSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,8 +93,26 @@ function ResultRow({
   result: ResultSummary;
   onDelete: () => Promise<void>;
 }) {
+  const [opened, setOpened] = useState<Detail | null>(null);
+  const [opening, setOpening] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const toggle = async () => {
+    if (opened) {
+      setOpened(null);
+      return;
+    }
+    setError(null);
+    setOpening(true);
+    try {
+      setOpened(await getResult(result.id));
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setOpening(false);
+    }
+  };
 
   const confirmDelete = async () => {
     setError(null);
@@ -105,14 +127,28 @@ function ResultRow({
   return (
     <div className="rounded-lg border p-2">
       <div className="flex items-center gap-3">
-        <div className="grid min-w-0 flex-1 gap-0.5">
-          <span className="text-sm font-medium">
-            {new Date(result.createdAt).toLocaleString("ja-JP")}
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
+          onClick={toggle}
+          disabled={opening}
+          aria-expanded={Boolean(opened)}
+        >
+          <ChevronRight
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
+              opened && "rotate-90",
+            )}
+          />
+          <span className="grid min-w-0 gap-0.5">
+            <span className="text-sm font-medium hover:underline">
+              {new Date(result.createdAt).toLocaleString("ja-JP")}
+            </span>
+            <span className="truncate text-xs text-muted-foreground">
+              {describe(result.request)}
+            </span>
           </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {describe(result.request)}
-          </span>
-        </div>
+        </button>
 
         <div className="flex gap-1.5">
           {result.colors.map((c) => (
@@ -158,6 +194,12 @@ function ResultRow({
         )}
       </div>
       {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+      {opening && <p className="mt-2 text-xs text-muted-foreground">読み込み中…</p>}
+      {opened && (
+        <div className="mt-3 border-t pt-3">
+          <ResultDetail result={opened} />
+        </div>
+      )}
     </div>
   );
 }
