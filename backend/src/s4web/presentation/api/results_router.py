@@ -20,6 +20,9 @@ from s4web.presentation.schemas.result_dto import ResultCreateRequest, ResultDTO
 
 router = APIRouter()
 
+# 一覧に出す件数。古いものは一覧に出ないだけで消えない。
+LIST_LIMIT = 50
+
 User = Annotated[AuthenticatedUser, Depends(current_user)]
 Repository = Annotated[ResultRepository, Depends(get_result_repository)]
 
@@ -30,7 +33,7 @@ def _not_found() -> HTTPException:
 
 @router.get("/results", response_model=list[ResultSummaryDTO])
 def list_results(user: User, repository: Repository) -> list[ResultSummaryDTO]:
-    return [ResultSummaryDTO.from_entity(r) for r in repository.list_for(user.id)]
+    return [ResultSummaryDTO.from_entity(r) for r in repository.list_for(user.id, LIST_LIMIT)]
 
 
 @router.get("/results/{result_id}", response_model=ResultDTO)
@@ -62,7 +65,7 @@ def create_result(
             status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="計算結果が大きすぎて保存できません。波長や入射角の点数を減らしてください",
         ) from exc
-    return ResultSummaryDTO.from_entity(saved)
+    return ResultSummaryDTO.from_entity(saved.summary())
 
 
 @router.delete("/results/{result_id}", status_code=status.HTTP_204_NO_CONTENT)

@@ -54,7 +54,7 @@ def test_detail_reads_back_what_was_saved() -> None:
 
 
 def test_summary_lists_only_entries_with_colors() -> None:
-    dto = ResultSummaryDTO.from_entity(_saved())
+    dto = ResultSummaryDTO.from_entity(_saved().summary())
     assert [(c.theta_deg, c.color.hex) for c in dto.colors] == [(0, "#010203")]
 
 

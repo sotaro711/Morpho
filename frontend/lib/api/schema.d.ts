@@ -385,7 +385,7 @@ export interface components {
         };
         /**
          * ResultSummaryDTO
-         * @description 一覧用。スペクトルは含めず、構成の要約と色だけを返す。
+         * @description 一覧用。条件やスペクトルは含めず、日時と色だけを返す。
          */
         ResultSummaryDTO: {
             /** Id */
@@ -395,7 +395,6 @@ export interface components {
              * Format: date-time
              */
             createdAt: string;
-            request: components["schemas"]["SimulationRequest"];
             /** Colors */
             colors: components["schemas"]["ResultColorDTO"][];
         };

@@ -6,7 +6,7 @@ infrastructure 層のアダプタ（Firestore など）がこれを実装する�
 
 from abc import ABC, abstractmethod
 
-from s4web.domain.entities.saved_result import ResultDraft, SavedResult
+from s4web.domain.entities.saved_result import ResultDraft, ResultSummary, SavedResult
 
 
 class ResultTooLargeError(Exception):
@@ -15,8 +15,8 @@ class ResultTooLargeError(Exception):
 
 class ResultRepository(ABC):
     @abstractmethod
-    def list_for(self, owner_id: str) -> tuple[SavedResult, ...]:
-        """所有者の結果を新しい順に返す。"""
+    def list_for(self, owner_id: str, limit: int) -> tuple[ResultSummary, ...]:
+        """所有者の結果の要約を、新しい順に limit 件まで返す。"""
         raise NotImplementedError
 
     @abstractmethod

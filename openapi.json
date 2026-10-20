@@ -1012,9 +1012,6 @@
             "format": "date-time",
             "title": "Createdat"
           },
-          "request": {
-            "$ref": "#/components/schemas/SimulationRequest"
-          },
           "colors": {
             "items": {
               "$ref": "#/components/schemas/ResultColorDTO"
@@ -1027,11 +1024,10 @@
         "required": [
           "id",
           "createdAt",
-          "request",
           "colors"
         ],
         "title": "ResultSummaryDTO",
-        "description": "一覧用。スペクトルは含めず、構成の要約と色だけを返す。"
+        "description": "一覧用。条件やスペクトルは含めず、日時と色だけを返す。"
       },
       "SimulationRequest": {
         "properties": {

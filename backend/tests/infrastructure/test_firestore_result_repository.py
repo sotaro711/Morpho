@@ -25,7 +25,10 @@ def _draft(points: int = 3) -> ResultDraft:
     return ResultDraft(
         request={"wlMin": 380, "layers": [{"name": "film", "materialId": "m1"}]},
         materials={"m1": _TABLE},
-        colors={"wavelengths": [380.0] * points, "entries": [{"thetaDeg": 0, "R": [0.1] * points}]},
+        colors={
+            "wavelengths": [380.0] * points,
+            "entries": [{"thetaDeg": 0, "R": [0.1] * points, "color": {"hex": "#010203"}}],
+        },
         angles={"wavelengths": [400.0], "entries": []},
     )
 
@@ -56,7 +59,10 @@ def test_round_trip_and_newest_first(repository: FirestoreResultRepository) -> N
     first = repository.add(owner, _draft())
     second = repository.add(owner, _draft())
 
-    assert [r.id for r in repository.list_for(owner)] == [second.id, first.id]
+    summaries = repository.list_for(owner, 10)
+    assert [r.id for r in summaries] == [second.id, first.id]
+    assert summaries[0].colors == ({"thetaDeg": 0, "color": {"hex": "#010203"}},)
+    assert [r.id for r in repository.list_for(owner, 1)] == [second.id]
     loaded = repository.get(owner, first.id)
     assert loaded is not None
     assert loaded.draft == first.draft
@@ -68,7 +74,7 @@ def test_owner_cannot_see_others_results(repository: FirestoreResultRepository) 
     other = str(uuid4())
 
     assert repository.get(other, saved.id) is None
-    assert repository.list_for(other) == ()
+    assert repository.list_for(other, 10) == ()
     assert repository.delete(other, saved.id) is False
 
 
@@ -87,4 +93,4 @@ def test_rejects_documents_over_the_limit(repository: FirestoreResultRepository)
     owner = str(uuid4())
     with pytest.raises(ResultTooLargeError):
         repository.add(owner, _draft(points=MAX_DOCUMENT_BYTES // 8))
-    assert repository.list_for(owner) == ()
+    assert repository.list_for(owner, 10) == ()

@@ -7,7 +7,12 @@ import pytest
 from s4web.application.usecases.save_result import SaveResultUseCase
 from s4web.domain.entities.material import DispersionPoint, DispersiveMaterial
 from s4web.domain.entities.saved_material import MaterialDraft, SavedMaterial
-from s4web.domain.entities.saved_result import MissingMaterialError, ResultDraft, SavedResult
+from s4web.domain.entities.saved_result import (
+    MissingMaterialError,
+    ResultDraft,
+    ResultSummary,
+    SavedResult,
+)
 from s4web.domain.ports.material_repository import MaterialRepository
 from s4web.domain.ports.result_repository import ResultRepository
 
@@ -51,7 +56,7 @@ class _Results(ResultRepository):
         self.added.append(draft)
         return SavedResult(str(len(self.added)), draft, datetime.now(UTC))
 
-    def list_for(self, owner_id: str) -> tuple[SavedResult, ...]:
+    def list_for(self, owner_id: str, limit: int) -> tuple[ResultSummary, ...]:
         raise NotImplementedError
 
     def get(self, owner_id: str, result_id: str) -> SavedResult | None:

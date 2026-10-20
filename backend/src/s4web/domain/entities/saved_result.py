@@ -56,6 +56,14 @@ class ResultDraft:
                 f"参照している材料のデータがありません: {', '.join(sorted(missing))}"
             )
 
+    def summary_colors(self) -> tuple[Json, ...]:
+        """一覧に出す、入射角ごとの反射色（{"thetaDeg", "color"}）。色の無い角度は除く。"""
+        return tuple(
+            {"thetaDeg": entry["thetaDeg"], "color": entry["color"]}
+            for entry in self.colors.get("entries", [])
+            if entry.get("color") is not None
+        )
+
 
 @dataclass(frozen=True)
 class SavedResult:
@@ -64,3 +72,15 @@ class SavedResult:
     id: str
     draft: ResultDraft
     created_at: datetime
+
+    def summary(self) -> ResultSummary:
+        return ResultSummary(self.id, self.created_at, self.draft.summary_colors())
+
+
+@dataclass(frozen=True)
+class ResultSummary:
+    """一覧用の保存済み結果。条件やスペクトルは持たず、日時と色だけ。"""
+
+    id: str
+    created_at: datetime
+    colors: tuple[Json, ...]

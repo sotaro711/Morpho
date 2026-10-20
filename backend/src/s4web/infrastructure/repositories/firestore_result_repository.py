@@ -14,7 +14,7 @@ from typing import Any
 from google.cloud import firestore
 
 from s4web.domain.entities.material import DispersionPoint, DispersiveMaterial
-from s4web.domain.entities.saved_result import ResultDraft, SavedResult
+from s4web.domain.entities.saved_result import ResultDraft, ResultSummary, SavedResult
 from s4web.domain.ports.result_repository import ResultRepository, ResultTooLargeError
 
 # Firestore の 1 ドキュメントの上限。
@@ -42,9 +42,15 @@ class FirestoreResultRepository(ResultRepository):
     def _results(self, owner_id: str) -> firestore.CollectionReference:
         return self._db.collection("users", owner_id, "results")
 
-    def list_for(self, owner_id: str) -> tuple[SavedResult, ...]:
-        query = self._results(owner_id).order_by("createdAt", direction=firestore.Query.DESCENDING)
-        return tuple(_to_entity(doc.id, doc.to_dict() or {}) for doc in query.stream())
+    def list_for(self, owner_id: str, limit: int) -> tuple[ResultSummary, ...]:
+        # 一覧にスペクトルや材料の表は要らないので、日時と色だけを読む。
+        query = (
+            self._results(owner_id)
+            .select(["createdAt", "summaryColors"])
+            .order_by("createdAt", direction=firestore.Query.DESCENDING)
+            .limit(limit)
+        )
+        return tuple(_to_summary(doc.id, doc.to_dict() or {}) for doc in query.stream())
 
     def get(self, owner_id: str, result_id: str) -> SavedResult | None:
         doc = self._results(owner_id).document(result_id).get()
@@ -82,7 +88,12 @@ def _to_document(draft: ResultDraft, created_at: datetime) -> dict[str, Any]:
         },
         "colors": dict(draft.colors),
         "angles": dict(draft.angles),
+        "summaryColors": [dict(c) for c in draft.summary_colors()],
     }
+
+
+def _to_summary(result_id: str, data: Mapping[str, Any]) -> ResultSummary:
+    return ResultSummary(result_id, data["createdAt"], tuple(data["summaryColors"]))
 
 
 def _to_entity(result_id: str, data: Mapping[str, Any]) -> SavedResult:

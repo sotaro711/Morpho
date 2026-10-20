@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from s4web.domain.entities.saved_result import SavedResult
+from s4web.domain.entities.saved_result import ResultSummary, SavedResult
 from s4web.presentation.schemas.material_dto import DispersionPointDTO
 from s4web.presentation.schemas.simulation_dto import (
     ColorDTO,
@@ -48,25 +48,18 @@ class ResultColorDTO(_CamelModel):
 
 
 class ResultSummaryDTO(_CamelModel):
-    """一覧用。スペクトルは含めず、構成の要約と色だけを返す。"""
+    """一覧用。条件やスペクトルは含めず、日時と色だけを返す。"""
 
     id: str
     created_at: datetime
-    request: SimulationRequest
     colors: list[ResultColorDTO]
 
     @classmethod
-    def from_entity(cls, saved: SavedResult) -> ResultSummaryDTO:
-        colors = SweepResponse.model_validate(saved.draft.colors)
+    def from_entity(cls, summary: ResultSummary) -> ResultSummaryDTO:
         return cls(
-            id=saved.id,
-            created_at=saved.created_at,
-            request=SimulationRequest.model_validate(saved.draft.request),
-            colors=[
-                ResultColorDTO(theta_deg=entry.theta_deg, color=entry.color)
-                for entry in colors.entries
-                if entry.color is not None
-            ],
+            id=summary.id,
+            created_at=summary.created_at,
+            colors=[ResultColorDTO.model_validate(c) for c in summary.colors],
         )
 
 

@@ -12,7 +12,6 @@ import {
   listResults,
   type ResultDetail as Detail,
   type ResultSummary,
-  type SimulationRequest,
 } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -75,21 +74,6 @@ export function ResultHistory() {
   );
 }
 
-/** 一覧に出す構成の要約。層の先頭は入射側の空気、末尾は基板。 */
-function describe(request: SimulationRequest): string {
-  const substrate = request.layers[request.layers.length - 1]?.name;
-  const structure =
-    request.periodNm != null
-      ? `段差あり（周期 ${request.periodNm} nm）`
-      : `膜 ${Math.max(request.layers.length - 2, 0)} 層`;
-  return [
-    structure,
-    `基板 ${substrate}`,
-    `${request.wlMin}–${request.wlMax} nm`,
-    `${request.pol} 偏光`,
-  ].join(" ・ ");
-}
-
 function ResultRow({
   result,
   onDelete,
@@ -144,13 +128,8 @@ function ResultRow({
               opened && "rotate-90",
             )}
           />
-          <span className="grid min-w-0 gap-0.5">
-            <span className="text-sm font-medium hover:underline">
-              {new Date(result.createdAt).toLocaleString("ja-JP")}
-            </span>
-            <span className="truncate text-xs text-muted-foreground">
-              {describe(result.request)}
-            </span>
+          <span className="text-sm font-medium hover:underline">
+            {new Date(result.createdAt).toLocaleString("ja-JP")}
           </span>
         </button>
 
