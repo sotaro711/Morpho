@@ -13,6 +13,7 @@ class DuplicateMaterialNameError(Exception):
     """同じ所有者のもとに同名の材料がすでにある。"""
 
 
+# PostgresMaterialRepository がこれを継承している
 class MaterialRepository(ABC):
     @abstractmethod
     def list_for(self, owner_id: str) -> tuple[SavedMaterial, ...]:

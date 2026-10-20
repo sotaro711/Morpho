@@ -1,7 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useState } from "react";
 
+import { AngleColorChips } from "@/components/AngleColorChips";
 import { DiffractionModeToggle } from "@/components/DiffractionModeToggle";
 import { LayerEditor } from "@/components/LayerEditor";
 import { Field } from "@/components/Field";
@@ -18,12 +20,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import type { SweepResponse } from "@/lib/api/client";
-import {
-  entryColor,
-  hasDiffractionModes,
-  type DiffractionMode,
-} from "@/lib/diffraction";
+import { saveResult } from "@/lib/api/client";
+import { hasDiffractionModes } from "@/lib/diffraction";
 import { structureLayers, type Medium, type Settings } from "@/lib/stack";
 import { isStepped, structureColumns, toSteppedSimulationRequest } from "@/lib/stepped";
 
@@ -63,6 +61,7 @@ export default function Home() {
     colorsSweep,
     anglesSweep,
   } = useSimulator();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const loading = colorsSweep.loading || anglesSweep.loading;
   const error = colorsSweep.error ?? anglesSweep.error;
 
@@ -76,18 +75,26 @@ export default function Home() {
     // 待ち行列に入った方がプロキシタイムアウトに達するリスクだけが増えるため。
     // 2 本目の run が始まるまで前回の角度チャートが残らないよう、先に消しておく。
     anglesSweep.clear();
-    await colorsSweep.run({
+    setSaveError(null);
+    const colors = await colorsSweep.run({
       ...base,
       ...COLOR_SWEEP_WL,
       thetaDegs: COLOR_THETAS,
       includeColors: true,
     });
-    await anglesSweep.run({
+    const angles = await anglesSweep.run({
       ...base,
       ...ANGLE_SWEEP_WL,
       thetaDegs: ANGLE_THETAS,
       includeColors: false,
     });
+    if (!colors || !angles) return;
+    // 計算はすべて保存して履歴にする。保存に失敗しても計算結果の表示は続ける。
+    try {
+      await saveResult({ request: base, colors, angles });
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : String(e));
+    }
   };
 
   return (
@@ -149,6 +156,11 @@ export default function Home() {
               >
                 エラー: {error}
               </div>
+            )}
+            {saveError && (
+              <p role="status" className="text-xs text-muted-foreground">
+                結果を保存できませんでした: {saveError}
+              </p>
             )}
           </div>
         </div>
@@ -227,33 +239,6 @@ export default function Home() {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-/** 入射角ごとの見た目の色チップ(研究スライド上段の形式)。 */
-function AngleColorChips({
-  sweep,
-  mode,
-}: {
-  sweep: SweepResponse;
-  mode: DiffractionMode;
-}) {
-  return (
-    <div className="flex justify-center gap-8">
-      {sweep.entries.map((e) => {
-        const color = entryColor(e, mode);
-        return (
-          <div key={e.thetaDeg} className="grid justify-items-center gap-1.5">
-            <span className="text-sm font-semibold">{Math.round(e.thetaDeg)}°</span>
-            <div
-              className="h-16 w-16 rounded-md border"
-              style={{ backgroundColor: color?.hex }}
-            />
-            <span className="text-xs text-muted-foreground">{color?.hex}</span>
-          </div>
-        );
-      })}
     </div>
   );
 }

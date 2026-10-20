@@ -259,7 +259,8 @@ class SweepRequest(SimulationRequest):
 class SweepEntryDTO(BaseModel):
     """1 入射角分の結果。キーは SimulationResponse に合わせて R / T。"""
 
-    theta_deg: float = Field(serialization_alias="thetaDeg")
+    # 保存した結果を読み込み直せるよう、入力も出力と同じ thetaDeg で受け付ける。
+    theta_deg: float = Field(alias="thetaDeg")
     R: list[float]
     T: list[float]
     color: ColorDTO | None = None
@@ -268,7 +269,7 @@ class SweepEntryDTO(BaseModel):
     @classmethod
     def from_entry(cls, entry: AngleSweepEntry) -> SweepEntryDTO:
         return cls(
-            theta_deg=entry.theta_deg,
+            thetaDeg=entry.theta_deg,
             R=list(entry.spectrum.reflectance),
             T=list(entry.spectrum.transmittance),
             color=(

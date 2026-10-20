@@ -102,3 +102,38 @@ export async function deleteMaterial(id: string): Promise<void> {
   });
   if (error) throw toError(error);
 }
+
+export type ResultSummary = components["schemas"]["ResultSummaryDTO"];
+export type ResultDetail = components["schemas"]["ResultDTO"];
+export type ResultCreate = components["schemas"]["ResultCreateRequest"];
+
+/** ログイン中のユーザーが保存した計算結果の一覧。新しい順。 */
+export async function listResults(): Promise<ResultSummary[]> {
+  const { data, error } = await apiClient.GET("/api/results");
+  if (error) throw toError(error);
+  return data;
+}
+
+/** 計算結果の詳細（条件・計算時点の材料・2 つの sweep の結果）。 */
+export async function getResult(id: string): Promise<ResultDetail> {
+  const { data, error } = await apiClient.GET("/api/results/{result_id}", {
+    params: { path: { result_id: id } },
+  });
+  if (error) throw toError(error);
+  return data;
+}
+
+/** 計算結果を保存する。 */
+export async function saveResult(body: ResultCreate): Promise<ResultSummary> {
+  const { data, error } = await apiClient.POST("/api/results", { body });
+  if (error) throw toError(error);
+  return data;
+}
+
+/** 計算結果を削除する。 */
+export async function deleteResult(id: string): Promise<void> {
+  const { error } = await apiClient.DELETE("/api/results/{result_id}", {
+    params: { path: { result_id: id } },
+  });
+  if (error) throw toError(error);
+}

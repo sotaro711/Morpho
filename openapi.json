@@ -361,6 +361,153 @@
         }
       }
     },
+    "/api/results": {
+      "get": {
+        "summary": "List Results",
+        "operationId": "list_results_api_results_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ResultSummaryDTO"
+                  },
+                  "type": "array",
+                  "title": "Response List Results Api Results Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create Result",
+        "operationId": "create_result_api_results_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResultCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultSummaryDTO"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/results/{result_id}": {
+      "get": {
+        "summary": "Get Result",
+        "operationId": "get_result_api_results__result_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Result Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResultDTO"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Result",
+        "operationId": "delete_result_api_results__result_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Result Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -771,6 +918,116 @@
         ],
         "title": "RegionDTO",
         "description": "層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。\n\nmaterial_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。"
+      },
+      "ResultColorDTO": {
+        "properties": {
+          "thetaDeg": {
+            "type": "number",
+            "title": "Thetadeg"
+          },
+          "color": {
+            "$ref": "#/components/schemas/ColorDTO"
+          }
+        },
+        "type": "object",
+        "required": [
+          "thetaDeg",
+          "color"
+        ],
+        "title": "ResultColorDTO",
+        "description": "一覧に出す、入射角ごとの反射色。"
+      },
+      "ResultCreateRequest": {
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/SimulationRequest"
+          },
+          "colors": {
+            "$ref": "#/components/schemas/SweepResponse"
+          },
+          "angles": {
+            "$ref": "#/components/schemas/SweepResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request",
+          "colors",
+          "angles"
+        ],
+        "title": "ResultCreateRequest",
+        "description": "保存する結果。request は計算条件、colors / angles は 2 つの sweep のレスポンス。"
+      },
+      "ResultDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "request": {
+            "$ref": "#/components/schemas/SimulationRequest"
+          },
+          "materials": {
+            "additionalProperties": {
+              "items": {
+                "$ref": "#/components/schemas/DispersionPointDTO"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Materials"
+          },
+          "colors": {
+            "$ref": "#/components/schemas/SweepResponse"
+          },
+          "angles": {
+            "$ref": "#/components/schemas/SweepResponse"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "createdAt",
+          "request",
+          "materials",
+          "colors",
+          "angles"
+        ],
+        "title": "ResultDTO",
+        "description": "詳細用。materials は計算時点の材料のデータ（キーは材料の id）。"
+      },
+      "ResultSummaryDTO": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Createdat"
+          },
+          "colors": {
+            "items": {
+              "$ref": "#/components/schemas/ResultColorDTO"
+            },
+            "type": "array",
+            "title": "Colors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "createdAt",
+          "colors"
+        ],
+        "title": "ResultSummaryDTO",
+        "description": "一覧用。条件やスペクトルは含めず、日時と色だけを返す。"
       },
       "SimulationRequest": {
         "properties": {

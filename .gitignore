@@ -7,3 +7,4 @@
 # .claude/settings.json や skills はプロジェクト共有物なので ignore しない。
 .claude/handovers/
 .claude/settings.local.json
+.claude/worktrees/

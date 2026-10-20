@@ -115,6 +115,42 @@ export interface paths {
         patch: operations["rename_material_api_materials__material_id__patch"];
         trace?: never;
     };
+    "/api/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Results */
+        get: operations["list_results_api_results_get"];
+        put?: never;
+        /** Create Result */
+        post: operations["create_result_api_results_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Result */
+        get: operations["get_result_api_results__result_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Result */
+        delete: operations["delete_result_api_results__result_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -308,6 +344,59 @@ export interface components {
             k: number;
             /** Materialid */
             materialId?: string | null;
+        };
+        /**
+         * ResultColorDTO
+         * @description 一覧に出す、入射角ごとの反射色。
+         */
+        ResultColorDTO: {
+            /** Thetadeg */
+            thetaDeg: number;
+            color: components["schemas"]["ColorDTO"];
+        };
+        /**
+         * ResultCreateRequest
+         * @description 保存する結果。request は計算条件、colors / angles は 2 つの sweep のレスポンス。
+         */
+        ResultCreateRequest: {
+            request: components["schemas"]["SimulationRequest"];
+            colors: components["schemas"]["SweepResponse"];
+            angles: components["schemas"]["SweepResponse"];
+        };
+        /**
+         * ResultDTO
+         * @description 詳細用。materials は計算時点の材料のデータ（キーは材料の id）。
+         */
+        ResultDTO: {
+            /** Id */
+            id: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            request: components["schemas"]["SimulationRequest"];
+            /** Materials */
+            materials: {
+                [key: string]: components["schemas"]["DispersionPointDTO"][];
+            };
+            colors: components["schemas"]["SweepResponse"];
+            angles: components["schemas"]["SweepResponse"];
+        };
+        /**
+         * ResultSummaryDTO
+         * @description 一覧用。条件やスペクトルは含めず、日時と色だけを返す。
+         */
+        ResultSummaryDTO: {
+            /** Id */
+            id: string;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /** Colors */
+            colors: components["schemas"]["ResultColorDTO"][];
         };
         /** SimulationRequest */
         SimulationRequest: {
@@ -682,6 +771,119 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["MaterialSummaryDTO"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_results_api_results_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultSummaryDTO"][];
+                };
+            };
+        };
+    };
+    create_result_api_results_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResultCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultSummaryDTO"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_result_api_results__result_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResultDTO"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_result_api_results__result_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
