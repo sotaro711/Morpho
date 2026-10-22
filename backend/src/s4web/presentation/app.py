@@ -16,6 +16,7 @@ from s4web.infrastructure.repositories.firestore_result_repository import (
 from s4web.infrastructure.repositories.postgres_material_repository import (
     ensure_database_configured,
 )
+from s4web.infrastructure.solvers.availability import ensure_solver_available
 from s4web.presentation.api.materials_router import router as materials_router
 from s4web.presentation.api.me_router import router as me_router
 from s4web.presentation.api.results_router import router as results_router
@@ -29,13 +30,15 @@ load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    # 設定漏れを最初のリクエスト(500)ではなくサーバー起動時に検出する。
+    # 設定漏れや S4 の読み込み失敗を、最初のリクエスト(500)ではなくサーバー起動時に検出する。
     # Cloud Run では起動に失敗した新リビジョンに切り替わらず、旧リビジョンが動き続ける。
     # create_app() ではなくここで確かめるのは、openapi.json の書き出しやテストのように
     # サーバーを起動しない用途を環境変数なしで動かせるようにするため。
     ensure_configured()
     ensure_database_configured()
     ensure_firestore_configured()
+    # S4 は get_solver() で初めて import されるため、壊れていても起動自体は成功してしまう。
+    ensure_solver_available()
     yield
 
 
