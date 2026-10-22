@@ -17,6 +17,7 @@ from s4web.infrastructure.repositories.postgres_material_repository import (
     ensure_database_configured,
 )
 from s4web.infrastructure.solvers.availability import ensure_solver_available
+from s4web.presentation.api.health_router import router as health_router
 from s4web.presentation.api.materials_router import router as materials_router
 from s4web.presentation.api.me_router import router as me_router
 from s4web.presentation.api.results_router import router as results_router
@@ -53,15 +54,12 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # /api 配下はすべてログイン必須。health だけはルーターの外に置いて公開のままにする。
+    # /api 配下はすべてログイン必須。health だけは認証を付けずに組み込み、公開のままにする。
     app.include_router(simulation_router, prefix="/api", dependencies=[Depends(current_user)])
     app.include_router(me_router, prefix="/api", dependencies=[Depends(current_user)])
     app.include_router(materials_router, prefix="/api", dependencies=[Depends(current_user)])
     app.include_router(results_router, prefix="/api", dependencies=[Depends(current_user)])
-
-    @app.get("/api/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    app.include_router(health_router, prefix="/api")
 
     # S4WEB_STATIC_DIR にフロントのビルド成果物があれば配信する(本番コンテナ用)。
     # /api/* のルートが優先され、それ以外のパスが静的ファイルに割り当てられる。
