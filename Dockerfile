@@ -41,6 +41,9 @@ COPY --from=frontend-build /build/out ./static
 ENV PATH="/app/.venv/bin:$PATH" \
     S4WEB_STATIC_DIR=/app/static \
     PORT=8080
+# 乗っ取られたときの被害を抑えるため、root ではなく専用ユーザーで動かす
+RUN useradd --system --uid 10001 --no-create-home app
+USER app
 # Cloud Run は PORT 環境変数で待ち受けポートを指定してくる。
 # exec で uvicorn を PID 1 にし、停止時の SIGTERM を sh ではなく uvicorn が直接受け取るようにする
 CMD ["sh", "-c", "exec uvicorn s4web.presentation.app:app --host 0.0.0.0 --port ${PORT}"]
