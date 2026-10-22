@@ -54,6 +54,16 @@ spec:
             periodSeconds: 240
             timeoutSeconds: 240
             failureThreshold: 1
+          # 起動後に応答しなくなったら再起動する。30 秒ごとに確かめ、3 回続けて失敗したら
+          # （約 90 秒応答がなければ）固まったとみなす。/api/health は async で外部に依存しないので、
+          # 計算でスレッドプールが埋まっていても、DB が落ちていても応答する。
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
   traffic:
     - latestRevision: true
       percent: 100
