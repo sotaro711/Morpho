@@ -13,6 +13,7 @@ steps:
     args:
       - -c
       - |
+        set -euo pipefail
         docker buildx create --name builder --driver docker-container --use
         docker buildx build \
           --build-arg NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL} \
@@ -32,6 +33,7 @@ steps:
     args:
       - -c
       - |
+        set -euo pipefail
         sed "s|image: IMAGE|image: $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA|" \
           service.yaml > /workspace/service.deploy.yaml
         gcloud run services replace /workspace/service.deploy.yaml --region=$_DEPLOY_REGION --quiet
