@@ -1,0 +1,59 @@
+# Cloud Run サービス morpho の設定。main へのマージで cloudbuild.yaml が
+# image を今回のコミットのイメージに置き換えてから `gcloud run services replace` で反映する。
+# コンソールで変えた設定は次のデプロイで上書きされるので、変更はこのファイルで行う。
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: morpho
+  annotations:
+    run.googleapis.com/ingress: all
+    # アプリ側で Supabase の JWT を検証するので、Cloud Run の IAM 認証は使わない
+    run.googleapis.com/invoker-iam-disabled: "true"
+    run.googleapis.com/maxScale: "2"
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: "20"
+        autoscaling.knative.dev/minScale: "0"
+        run.googleapis.com/cpu-throttling: "true"
+        run.googleapis.com/sessionAffinity: "false"
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      serviceAccountName: 393004586204-compute@developer.gserviceaccount.com
+      containers:
+        - name: placeholder-1
+          image: IMAGE
+          ports:
+            - name: http1
+              containerPort: 8080
+          env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: morpho-sim
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: DATABASE_URL
+                  key: latest
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: SUPABASE_URL
+                  key: latest
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+          # 起動時の確認（S4 など）は _lifespan で行い、失敗すればプロセスが終了するので、
+          # ポートが開いたかを見る TCP の確認で足りる
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 240
+            timeoutSeconds: 240
+            failureThreshold: 1
+  traffic:
+    - latestRevision: true
+      percent: 100
