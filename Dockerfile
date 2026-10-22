@@ -21,9 +21,13 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential libopenblas-dev \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-COPY backend/ ./
 # ベースイメージの Python を使う(uv によるダウンロードを禁止)
 ENV UV_PYTHON=python3.14 UV_PYTHON_DOWNLOADS=never
+# 依存(S4 の C++ ビルドを含む)を先に入れ、ソースだけの変更でやり直さないようにする
+COPY backend/pyproject.toml backend/uv.lock backend/README.md ./
+COPY backend/vendor ./vendor
+RUN uv sync --frozen --no-group dev --no-editable --no-install-project
+COPY backend/ ./
 RUN uv sync --frozen --no-group dev --no-editable
 
 # ---- ランタイム ----
