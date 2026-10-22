@@ -9,6 +9,8 @@ metadata:
     run.googleapis.com/ingress: all
     # アプリ側で Supabase の JWT を検証するので、Cloud Run の IAM 認証は使わない
     run.googleapis.com/invoker-iam-disabled: "true"
+    # サービス単位の上限は全リビジョンの合計にかかるので、リビジョン単位の maxScale（20）より
+    # こちらが実効上限になる。値は移行時点の本番設定をそのまま写している。
     run.googleapis.com/maxScale: "2"
 spec:
   template:
