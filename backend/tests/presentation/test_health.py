@@ -48,6 +48,7 @@ def test_health_returns_ok() -> None:
 def test_health_responds_while_thread_pool_is_full() -> None:
     async def run() -> int | None:
         # 同期のエンドポイント（S4 の計算など）が使うスレッドプールを 1 本にして、それを塞ぐ。
+        # このリミッターは anyio.run() が作るイベントループごとにあるので、他のテストに影響しない。
         anyio.to_thread.current_default_thread_limiter().total_tokens = 1
         release = threading.Event()
         async with anyio.create_task_group() as tg:
