@@ -420,7 +420,7 @@ export function TopView({
     yanchor: "top",
   });
 
-  // 入射面: 光の進む向き（x 軸から φ だけ回った向き）に、単位胞の外から中心へ矢印を引く
+  // 入射面: x 軸から φ だけ回った向きの線。単位胞の外（ラベル側）から反対側の辺まで引く
   const phi = (phiDeg * Math.PI) / 180;
   const dir = { x: Math.cos(phi), y: Math.sin(phi) };
   const half = Math.min(
@@ -428,22 +428,34 @@ export function TopView({
     Math.abs(dir.y) > 1e-9 ? periodYNm / 2 / Math.abs(dir.y) : Infinity,
   );
   const tail = half + unit * 1.2;
-  annotations.push({
-    x: cx,
-    y: cy,
-    ax: cx - dir.x * tail,
-    ay: cy - dir.y * tail,
-    axref: "x",
-    ayref: "y",
-    xref: "x",
-    yref: "y",
-    text: "",
-    showarrow: true,
-    arrowhead: 2,
-    arrowsize: 1,
-    arrowwidth: 3,
-    arrowcolor: "#e6b800",
+  plotShapes.push({
+    type: "line",
+    x0: cx - dir.x * tail,
+    y0: cy - dir.y * tail,
+    x1: cx + dir.x * half,
+    y1: cy + dir.y * half,
+    line: { color: "#e6b800", width: 3 },
   });
+  // φ ≠ 0 のときは基準（φ = 0°、x 方向）を点線で添えて、何からの角度か分かるようにする
+  if (phiDeg !== 0) {
+    plotShapes.push({
+      type: "line",
+      x0: cx - tail,
+      y0: cy,
+      x1: periodNm,
+      y1: cy,
+      line: { color: "#e6b800", width: 1.5, dash: "dot" },
+    });
+    annotations.push({
+      x: cx - tail - unit * 0.3,
+      y: cy,
+      text: "基準 φ = 0°",
+      showarrow: false,
+      font: { size: 10, color: "#8a6d00" },
+      xanchor: "right",
+      yanchor: "middle",
+    });
+  }
   const anchor = (c: number, near: string, far: string, mid: string) =>
     c > 0.3 ? near : c < -0.3 ? far : mid;
   annotations.push({
