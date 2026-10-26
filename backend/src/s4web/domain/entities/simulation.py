@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from s4web.domain.entities.color import ColorResult
-from s4web.domain.entities.layer import Layer
+from s4web.domain.entities.layer import CircleRegion, Layer, Region
 from s4web.domain.entities.material import OpticalMaterial
 
 
@@ -31,9 +31,10 @@ class DiffractionMode(StrEnum):
     TOTAL = "total"
 
 
-# 基底数の上限。GUI の最大回折次数 ±30（2*30+1 = 61）に対応する。
-# これ以上は計算時間（基底数のほぼ 3 乗）が実用範囲を超えるため受け付けない。
-NUM_BASIS_LIMIT = 61
+# 基底数の上限。1D 格子では GUI の最大回折次数 ±30（2*30+1 = 61）、x, y の 2 方向に
+# 周期を持つ構造では ±7 次（15*15 = 225。球配列の検証で基底 81〜169 が必要だった）
+# に対応する。これ以上は計算時間（基底数のほぼ 3 乗）が実用範囲を超えるため受け付けない。
+NUM_BASIS_LIMIT = 225
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,13 @@ class SimulationCondition:
     必須になる。平面多層膜（パターンなし）では period_nm は不要で、
     num_basis=1 が厳密（回折は 0 次のみ）。
 
+    period_y_nm を与えると x, y の 2 方向に周期を持つ構造（球や柱の配列）になる。
+    円・矩形の領域（CircleRegion / RectRegion）を持つ層にはこれが必須。無ければ
+    x 方向だけの 1D 格子で、y 方向には一様（従来どおり）。
+
+    azimuth_deg は入射面の方位角（x 軸から測り、0 なら xz 面、90 なら yz 面に
+    入射）。2 方向周期の構造でだけ指定でき、1D 格子は xz 面（0）に固定する。
+
     波長は通常 [wl_min_nm, wl_max_nm] の等間隔 wl_points 点。等間隔で表せない
     サンプル（参照データとの突き合わせなど）は explicit_wavelengths_nm で
     明示リストを与える。指定時は wl_min/wl_max/wl_points を使わない。
@@ -59,8 +67,10 @@ class SimulationCondition:
     polarization: Polarization
     layers: tuple[Layer, ...]
     period_nm: float | None = None
+    period_y_nm: float | None = None
     num_basis: int = 1
     explicit_wavelengths_nm: tuple[float, ...] | None = None
+    azimuth_deg: float = 0.0
 
     def __post_init__(self) -> None:
         if self.wl_min_nm <= 0 or self.wl_max_nm <= 0:
@@ -92,19 +102,54 @@ class SimulationCondition:
                     )
         if self.period_nm is not None and self.period_nm <= 0:
             raise ValueError(f"period_nm must be positive, got {self.period_nm}")
-        patterned = [layer for layer in self.layers if layer.is_patterned]
-        if patterned:
+        if self.period_y_nm is not None:
+            if self.period_y_nm <= 0:
+                raise ValueError(f"period_y_nm must be positive, got {self.period_y_nm}")
             if self.period_nm is None:
-                names = ", ".join(layer.name for layer in patterned)
-                raise ValueError(f"period_nm is required for patterned layers ({names})")
-            for layer in patterned:
-                for region in layer.regions:
+                raise ValueError("period_y_nm requires period_nm")
+        if not (0.0 <= self.azimuth_deg < 360.0):
+            raise ValueError(f"azimuth_deg must be in [0, 360), got {self.azimuth_deg}")
+        if self.azimuth_deg != 0.0 and self.period_y_nm is None:
+            raise ValueError("azimuth_deg requires period_y_nm (biperiodic structure)")
+        self._validate_regions()
+        self._validate_dispersion_ranges()
+
+    def _validate_regions(self) -> None:
+        # 領域が単位胞 [0, period_nm) × [0, period_y_nm) に収まることを確かめる。
+        patterned = [layer for layer in self.layers if layer.is_patterned]
+        if not patterned:
+            return
+        if self.period_nm is None:
+            names = ", ".join(layer.name for layer in patterned)
+            raise ValueError(f"period_nm is required for patterned layers ({names})")
+        shaped = [layer for layer in patterned if layer.has_2d_regions]
+        if shaped and self.period_y_nm is None:
+            names = ", ".join(layer.name for layer in shaped)
+            raise ValueError(
+                f"period_y_nm is required for layers with circle or rect regions ({names})"
+            )
+        for layer in patterned:
+            for region in layer.regions:
+                if isinstance(region, Region):
                     if region.end_nm > self.period_nm:
                         raise ValueError(
                             f"region [{region.x_nm}, {region.end_nm}) in layer "
                             f"'{layer.name}' exceeds period_nm={self.period_nm}"
                         )
-        self._validate_dispersion_ranges()
+                    continue
+                assert self.period_y_nm is not None
+                if isinstance(region, CircleRegion):
+                    hx = hy = region.radius_nm
+                else:
+                    hx, hy = region.width_nm / 2, region.height_nm / 2
+                if not (
+                    hx <= region.cx_nm <= self.period_nm - hx
+                    and hy <= region.cy_nm <= self.period_y_nm - hy
+                ):
+                    raise ValueError(
+                        f"{region} in layer '{layer.name}' exceeds the unit cell "
+                        f"{self.period_nm} x {self.period_y_nm}"
+                    )
 
     def _validate_dispersion_ranges(self) -> None:
         # 分散データは測定範囲の外へ外挿しない。範囲外の波長を含む条件はここで拒否する。
@@ -139,6 +184,11 @@ class SimulationCondition:
     def is_patterned(self) -> bool:
         """面内パターンを持つ層を含むかどうか。"""
         return any(layer.is_patterned for layer in self.layers)
+
+    @property
+    def is_biperiodic(self) -> bool:
+        """x, y の 2 方向に周期を持つ構造かどうか。"""
+        return self.period_y_nm is not None
 
     def wavelengths_nm(self) -> list[float]:
         """計算する波長のリスト。
