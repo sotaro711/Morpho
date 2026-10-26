@@ -555,6 +555,64 @@
         "title": "AngularDistributionDTO",
         "description": "1 波長の角度分布。orders は出射角の昇順（伝搬する次数のみ）。"
       },
+      "CircleRegionDTO": {
+        "properties": {
+          "n": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "k": {
+            "type": "number",
+            "title": "K",
+            "default": 0.0
+          },
+          "materialId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materialid"
+          },
+          "shape": {
+            "type": "string",
+            "const": "circle",
+            "title": "Shape"
+          },
+          "cxNm": {
+            "type": "number",
+            "title": "Cxnm"
+          },
+          "cyNm": {
+            "type": "number",
+            "title": "Cynm"
+          },
+          "radiusNm": {
+            "type": "number",
+            "title": "Radiusnm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shape",
+          "cxNm",
+          "cyNm",
+          "radiusNm"
+        ],
+        "title": "CircleRegionDTO",
+        "description": "層内の円形領域（x, y の 2 方向に周期を持つ構造用）。中心座標は単位胞左下隅が原点。"
+      },
       "ColorDTO": {
         "properties": {
           "r": {
@@ -640,6 +698,16 @@
           "reflectance": {
             "type": "number",
             "title": "Reflectance"
+          },
+          "orderY": {
+            "type": "integer",
+            "title": "Ordery",
+            "default": 0
+          },
+          "azimuthDeg": {
+            "type": "number",
+            "title": "Azimuthdeg",
+            "default": 0.0
           }
         },
         "type": "object",
@@ -649,7 +717,7 @@
           "reflectance"
         ],
         "title": "DiffractionOrderDTO",
-        "description": "1 つの回折次数への反射パワーの配分。"
+        "description": "1 つの回折次数への反射パワーの配分。\n\norder_y と azimuth_deg は x, y の 2 方向に周期を持つ構造用（1D 格子では 0）。"
       },
       "DispersionPointDTO": {
         "properties": {
@@ -727,7 +795,17 @@
           },
           "regions": {
             "items": {
-              "$ref": "#/components/schemas/RegionDTO"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RegionDTO"
+                },
+                {
+                  "$ref": "#/components/schemas/RectRegionDTO"
+                },
+                {
+                  "$ref": "#/components/schemas/CircleRegionDTO"
+                }
+              ]
             },
             "type": "array",
             "title": "Regions",
@@ -872,16 +950,8 @@
         "title": "Polarization",
         "description": "偏光。S=TE、P=TM。"
       },
-      "RegionDTO": {
+      "RectRegionDTO": {
         "properties": {
-          "xNm": {
-            "type": "number",
-            "title": "Xnm"
-          },
-          "widthNm": {
-            "type": "number",
-            "title": "Widthnm"
-          },
           "n": {
             "anyOf": [
               {
@@ -909,6 +979,83 @@
               }
             ],
             "title": "Materialid"
+          },
+          "shape": {
+            "type": "string",
+            "const": "rect",
+            "title": "Shape"
+          },
+          "cxNm": {
+            "type": "number",
+            "title": "Cxnm"
+          },
+          "cyNm": {
+            "type": "number",
+            "title": "Cynm"
+          },
+          "widthNm": {
+            "type": "number",
+            "title": "Widthnm"
+          },
+          "heightNm": {
+            "type": "number",
+            "title": "Heightnm"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shape",
+          "cxNm",
+          "cyNm",
+          "widthNm",
+          "heightNm"
+        ],
+        "title": "RectRegionDTO",
+        "description": "層内の矩形領域（x, y の 2 方向に周期を持つ構造用）。中心座標は単位胞左下隅が原点。"
+      },
+      "RegionDTO": {
+        "properties": {
+          "n": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N"
+          },
+          "k": {
+            "type": "number",
+            "title": "K",
+            "default": 0.0
+          },
+          "materialId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Materialid"
+          },
+          "shape": {
+            "type": "string",
+            "const": "stripe",
+            "title": "Shape",
+            "default": "stripe"
+          },
+          "xNm": {
+            "type": "number",
+            "title": "Xnm"
+          },
+          "widthNm": {
+            "type": "number",
+            "title": "Widthnm"
           }
         },
         "type": "object",
@@ -917,7 +1064,7 @@
           "widthNm"
         ],
         "title": "RegionDTO",
-        "description": "層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。\n\nmaterial_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。"
+        "description": "層内の x 方向の区間（1D 格子の面内パターン）。単位胞左端を 0 とする nm 座標。\n\nshape は省略可（従来の JSON と互換）。y 方向には単位胞いっぱいに伸びる。"
       },
       "ResultColorDTO": {
         "properties": {
@@ -1051,6 +1198,11 @@
             "title": "Thetadeg",
             "default": 0.0
           },
+          "phiDeg": {
+            "type": "number",
+            "title": "Phideg",
+            "default": 0.0
+          },
           "pol": {
             "$ref": "#/components/schemas/Polarization",
             "default": "s"
@@ -1074,9 +1226,20 @@
             ],
             "title": "Periodnm"
           },
+          "periodYNm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periodynm"
+          },
           "numBasis": {
             "type": "integer",
-            "maximum": 61.0,
+            "maximum": 225.0,
             "minimum": 1.0,
             "title": "Numbasis",
             "default": 1
@@ -1225,6 +1388,11 @@
             "title": "Thetadeg",
             "default": 0.0
           },
+          "phiDeg": {
+            "type": "number",
+            "title": "Phideg",
+            "default": 0.0
+          },
           "pol": {
             "$ref": "#/components/schemas/Polarization",
             "default": "s"
@@ -1248,9 +1416,20 @@
             ],
             "title": "Periodnm"
           },
+          "periodYNm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Periodynm"
+          },
           "numBasis": {
             "type": "integer",
-            "maximum": 61.0,
+            "maximum": 225.0,
             "minimum": 1.0,
             "title": "Numbasis",
             "default": 1

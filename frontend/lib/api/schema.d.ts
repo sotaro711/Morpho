@@ -182,6 +182,32 @@ export interface components {
             /** Orders */
             orders: components["schemas"]["DiffractionOrderDTO"][];
         };
+        /**
+         * CircleRegionDTO
+         * @description 層内の円形領域（x, y の 2 方向に周期を持つ構造用）。中心座標は単位胞左下隅が原点。
+         */
+        CircleRegionDTO: {
+            /** N */
+            n?: number | null;
+            /**
+             * K
+             * @default 0
+             */
+            k: number;
+            /** Materialid */
+            materialId?: string | null;
+            /**
+             * Shape
+             * @constant
+             */
+            shape: "circle";
+            /** Cxnm */
+            cxNm: number;
+            /** Cynm */
+            cyNm: number;
+            /** Radiusnm */
+            radiusNm: number;
+        };
         /** ColorDTO */
         ColorDTO: {
             /** R */
@@ -217,6 +243,8 @@ export interface components {
         /**
          * DiffractionOrderDTO
          * @description 1 つの回折次数への反射パワーの配分。
+         *
+         *     order_y と azimuth_deg は x, y の 2 方向に周期を持つ構造用（1D 格子では 0）。
          */
         DiffractionOrderDTO: {
             /** Order */
@@ -225,6 +253,16 @@ export interface components {
             angleDeg: number;
             /** Reflectance */
             reflectance: number;
+            /**
+             * Ordery
+             * @default 0
+             */
+            orderY: number;
+            /**
+             * Azimuthdeg
+             * @default 0
+             */
+            azimuthDeg: number;
         };
         /** DispersionPointDTO */
         DispersionPointDTO: {
@@ -262,7 +300,7 @@ export interface components {
              * Regions
              * @default []
              */
-            regions: components["schemas"]["RegionDTO"][];
+            regions: (components["schemas"]["RegionDTO"] | components["schemas"]["RectRegionDTO"] | components["schemas"]["CircleRegionDTO"])[];
         };
         /**
          * MaterialCreateRequest
@@ -325,16 +363,10 @@ export interface components {
          */
         Polarization: "s" | "p";
         /**
-         * RegionDTO
-         * @description 層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。
-         *
-         *     material_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。
+         * RectRegionDTO
+         * @description 層内の矩形領域（x, y の 2 方向に周期を持つ構造用）。中心座標は単位胞左下隅が原点。
          */
-        RegionDTO: {
-            /** Xnm */
-            xNm: number;
-            /** Widthnm */
-            widthNm: number;
+        RectRegionDTO: {
             /** N */
             n?: number | null;
             /**
@@ -344,6 +376,46 @@ export interface components {
             k: number;
             /** Materialid */
             materialId?: string | null;
+            /**
+             * Shape
+             * @constant
+             */
+            shape: "rect";
+            /** Cxnm */
+            cxNm: number;
+            /** Cynm */
+            cyNm: number;
+            /** Widthnm */
+            widthNm: number;
+            /** Heightnm */
+            heightNm: number;
+        };
+        /**
+         * RegionDTO
+         * @description 層内の x 方向の区間（1D 格子の面内パターン）。単位胞左端を 0 とする nm 座標。
+         *
+         *     shape は省略可（従来の JSON と互換）。y 方向には単位胞いっぱいに伸びる。
+         */
+        RegionDTO: {
+            /** N */
+            n?: number | null;
+            /**
+             * K
+             * @default 0
+             */
+            k: number;
+            /** Materialid */
+            materialId?: string | null;
+            /**
+             * Shape
+             * @default stripe
+             * @constant
+             */
+            shape: "stripe";
+            /** Xnm */
+            xNm: number;
+            /** Widthnm */
+            widthNm: number;
         };
         /**
          * ResultColorDTO
@@ -411,12 +483,19 @@ export interface components {
              * @default 0
              */
             thetaDeg: number;
+            /**
+             * Phideg
+             * @default 0
+             */
+            phiDeg: number;
             /** @default s */
             pol: components["schemas"]["Polarization"];
             /** Layers */
             layers: components["schemas"]["LayerDTO"][];
             /** Periodnm */
             periodNm?: number | null;
+            /** Periodynm */
+            periodYNm?: number | null;
             /**
              * Numbasis
              * @default 1
@@ -466,12 +545,19 @@ export interface components {
              * @default 0
              */
             thetaDeg: number;
+            /**
+             * Phideg
+             * @default 0
+             */
+            phiDeg: number;
             /** @default s */
             pol: components["schemas"]["Polarization"];
             /** Layers */
             layers: components["schemas"]["LayerDTO"][];
             /** Periodnm */
             periodNm?: number | null;
+            /** Periodynm */
+            periodYNm?: number | null;
             /**
              * Numbasis
              * @default 1

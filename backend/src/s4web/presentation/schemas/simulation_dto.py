@@ -7,6 +7,7 @@ alias_generator でこのギャップを吸収する。
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -14,9 +15,10 @@ from pydantic.alias_generators import to_camel
 
 from s4web.domain.entities.color import ColorResult
 from s4web.domain.entities.diffraction import AngularDistribution
-from s4web.domain.entities.layer import Layer, Region
+from s4web.domain.entities.layer import CircleRegion, Layer, RectRegion, Region
 from s4web.domain.entities.material import DispersiveMaterial, Material, OpticalMaterial
 from s4web.domain.entities.simulation import (
+    NUM_BASIS_LIMIT,
     AngleSweepEntry,
     DiffractionMode,
     Polarization,
@@ -48,24 +50,69 @@ def _resolve_material(
     return Material(n=n, k=k)
 
 
-class RegionDTO(_CamelModel):
-    """層内の矩形領域（面内パターン）。単位胞左端を 0 とする nm 座標。
+class _RegionBase(_CamelModel):
+    """領域の材料。material_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。"""
 
-    material_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。
-    """
-
-    x_nm: float
-    width_nm: float
     n: float | None = None
     k: float = 0.0
     material_id: UUID | None = None
 
+    def _material(self, materials: Materials) -> OpticalMaterial:
+        return _resolve_material(self.n, self.k, self.material_id, materials)
+
+
+class RegionDTO(_RegionBase):
+    """層内の x 方向の区間（1D 格子の面内パターン）。単位胞左端を 0 とする nm 座標。
+
+    shape は省略可（従来の JSON と互換）。y 方向には単位胞いっぱいに伸びる。
+    """
+
+    shape: Literal["stripe"] = "stripe"
+    x_nm: float
+    width_nm: float
+
     def to_entity(self, materials: Materials) -> Region:
-        return Region(
-            material=_resolve_material(self.n, self.k, self.material_id, materials),
-            x_nm=self.x_nm,
+        return Region(material=self._material(materials), x_nm=self.x_nm, width_nm=self.width_nm)
+
+
+class RectRegionDTO(_RegionBase):
+    """層内の矩形領域（x, y の 2 方向に周期を持つ構造用）。中心座標は単位胞左下隅が原点。"""
+
+    shape: Literal["rect"]
+    cx_nm: float
+    cy_nm: float
+    width_nm: float
+    height_nm: float
+
+    def to_entity(self, materials: Materials) -> RectRegion:
+        return RectRegion(
+            material=self._material(materials),
+            cx_nm=self.cx_nm,
+            cy_nm=self.cy_nm,
             width_nm=self.width_nm,
+            height_nm=self.height_nm,
         )
+
+
+class CircleRegionDTO(_RegionBase):
+    """層内の円形領域（x, y の 2 方向に周期を持つ構造用）。中心座標は単位胞左下隅が原点。"""
+
+    shape: Literal["circle"]
+    cx_nm: float
+    cy_nm: float
+    radius_nm: float
+
+    def to_entity(self, materials: Materials) -> CircleRegion:
+        return CircleRegion(
+            material=self._material(materials),
+            cx_nm=self.cx_nm,
+            cy_nm=self.cy_nm,
+            radius_nm=self.radius_nm,
+        )
+
+
+# shape で判別する。省略時は従来どおり x 方向の区間（RegionDTO）。
+AnyRegionDTO = RegionDTO | RectRegionDTO | CircleRegionDTO
 
 
 class LayerDTO(_CamelModel):
@@ -76,7 +123,7 @@ class LayerDTO(_CamelModel):
     n: float | None = None
     k: float = 0.0
     material_id: UUID | None = None
-    regions: list[RegionDTO] = []
+    regions: list[AnyRegionDTO] = []
 
     def to_entity(self, materials: Materials) -> Layer:
         return Layer(
@@ -92,11 +139,15 @@ class SimulationRequest(_CamelModel):
     wl_max: float = Field(gt=0)
     wl_points: int = Field(ge=1)
     theta_deg: float = 0.0
+    # 入射面の方位角（0 = xz 面、90 = yz 面）。x, y の 2 方向に周期を持つ構造でのみ指定する。
+    phi_deg: float = 0.0
     pol: Polarization = Polarization.S
     layers: list[LayerDTO] = Field(min_length=2)
     # 面内パターンを使う場合のみ指定する（平面多層膜では省略 = 従来どおり）。
+    # period_y_nm を与えると x, y の 2 方向に周期を持つ構造（円・矩形の領域が使える）。
     period_nm: float | None = None
-    num_basis: int = Field(ge=1, le=61, default=1)
+    period_y_nm: float | None = None
+    num_basis: int = Field(ge=1, le=NUM_BASIS_LIMIT, default=1)
     # 等間隔で表せない波長サンプル用の明示リスト（昇順）。指定時は
     # wlMin / wlMax / wlPoints を使わず、このリストの波長だけを計算する。
     wavelengths_nm: list[float] | None = Field(default=None, min_length=1, max_length=2001)
@@ -120,10 +171,12 @@ class SimulationRequest(_CamelModel):
             polarization=self.pol,
             layers=tuple(layer.to_entity(materials) for layer in self.layers),
             period_nm=self.period_nm,
+            period_y_nm=self.period_y_nm,
             num_basis=self.num_basis,
             explicit_wavelengths_nm=(
                 tuple(self.wavelengths_nm) if self.wavelengths_nm is not None else None
             ),
+            azimuth_deg=self.phi_deg,
         )
 
 
@@ -178,11 +231,16 @@ class DiffractionModesDTO(_CamelModel):
 
 
 class DiffractionOrderDTO(_CamelModel):
-    """1 つの回折次数への反射パワーの配分。"""
+    """1 つの回折次数への反射パワーの配分。
+
+    order_y と azimuth_deg は x, y の 2 方向に周期を持つ構造用（1D 格子では 0）。
+    """
 
     order: int
     angle_deg: float
     reflectance: float
+    order_y: int = 0
+    azimuth_deg: float = 0.0
 
 
 class AngularDistributionDTO(_CamelModel):
@@ -206,6 +264,8 @@ class OrdersResponse(BaseModel):
                             order=o.order,
                             angle_deg=o.angle_deg,
                             reflectance=o.reflectance,
+                            order_y=o.order_y,
+                            azimuth_deg=o.azimuth_deg,
                         )
                         for o in d.orders
                     ],
