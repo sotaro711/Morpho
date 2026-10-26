@@ -243,8 +243,8 @@ export function CrossSectionView({
           title: {
             text:
               axis === "x"
-                ? "x (nm) — 1 周期分（y = 周期/2 を通る xz 断面 = 入射面）"
-                : "y (nm) — 1 周期分（x = 周期/2 を通る yz 断面 = 入射面）",
+                ? "x (nm) — 入射面 xz での断面"
+                : "y (nm) — 入射面 yz での断面",
           },
           range: [0, periodNm],
           zeroline: false,
@@ -266,74 +266,195 @@ export function CrossSectionView({
 }
 
 /**
- * 3 次元構造の上面図（xy 面）。中央の単位胞を濃く、周囲 8 個の繰り返しを薄く描いて
- * 2 方向に周期があることを見せる。
+ * 3 次元構造の上面図（xy 面）。単位胞 1 つを軸なしで描き、周期と形の寸法を
+ * 寸法線で、入射面を中央を通る線で示す（研究スライドの図に合わせた体裁）。
  */
 export function TopView({
   periodNm,
   periodYNm,
   shapes,
+  phiDeg = 0,
 }: {
   periodNm: number;
   periodYNm: number;
   shapes: TopShape[];
+  phiDeg?: number;
 }) {
-  const plotShapes: Partial<Shape>[] = [];
+  // 寸法線の間隔は単位胞の大きさに比例させ、周期を変えても見た目を保つ
+  const unit = Math.max(periodNm, periodYNm) * 0.12;
+  const plotShapes: Partial<Shape>[] = [
+    {
+      type: "rect",
+      x0: 0,
+      y0: 0,
+      x1: periodNm,
+      y1: periodYNm,
+      line: { color: "#333333", width: 1.5 },
+    },
+  ];
   const annotations: Partial<Annotations>[] = [];
-  for (const dx of [-1, 0, 1]) {
-    for (const dy of [-1, 0, 1]) {
-      const center = dx === 0 && dy === 0;
-      const ox = dx * periodNm;
-      const oy = dy * periodYNm;
-      const line = { color: center ? "#333333" : "#bbbbbb", width: 1 };
-      // 単位胞の枠
-      plotShapes.push({
-        type: "rect",
-        x0: ox,
-        y0: oy,
-        x1: ox + periodNm,
-        y1: oy + periodYNm,
-        line: { ...line, dash: center ? "solid" : "dot" },
-      });
-      for (const s of shapes) {
-        const fillcolor = center ? PALETTE[0] : "rgba(31, 119, 180, 0.25)";
-        if (s.kind === "circle") {
-          plotShapes.push({
-            type: "circle",
-            x0: ox + s.cxNm - s.radiusNm,
-            y0: oy + s.cyNm - s.radiusNm,
-            x1: ox + s.cxNm + s.radiusNm,
-            y1: oy + s.cyNm + s.radiusNm,
-            fillcolor,
-            line,
-          });
-        } else {
-          plotShapes.push({
-            type: "rect",
-            x0: ox + s.cxNm - s.widthNm / 2,
-            y0: oy + s.cyNm - s.heightNm / 2,
-            x1: ox + s.cxNm + s.widthNm / 2,
-            y1: oy + s.cyNm + s.heightNm / 2,
-            fillcolor,
-            line,
-          });
-        }
-        if (center) {
-          const size =
-            s.kind === "circle"
-              ? `⌀${s.radiusNm * 2}`
-              : `${s.widthNm}×${s.heightNm}`;
-          annotations.push({
-            x: s.cxNm,
-            y: s.cyNm,
-            text: `${s.name}<br>${size} nm`,
-            showarrow: false,
-            font: { color: "#ffffff", size: 11 },
-          });
-        }
-      }
+
+  // 寸法線（JIS Z 8317 に倣う）: 両端矢印、数値は水平なら線の上、垂直なら線の左に
+  // 下から上へ読む向きで置く。単位は図の隅に一括で注記するので数値のみ。
+  function dimension(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    label: string,
+  ) {
+    const horizontal = y0 === y1;
+    annotations.push({
+      x: x1,
+      y: y1,
+      ax: x0,
+      ay: y0,
+      axref: "x",
+      ayref: "y",
+      xref: "x",
+      yref: "y",
+      text: "",
+      showarrow: true,
+      // plotly は "end+start" を受けるが型定義に無い
+      arrowside: "end+start" as Annotations["arrowside"],
+      arrowhead: 2,
+      arrowsize: 0.8,
+      arrowwidth: 1,
+      arrowcolor: "#333333",
+    });
+    annotations.push({
+      x: (x0 + x1) / 2,
+      y: (y0 + y1) / 2,
+      text: label,
+      showarrow: false,
+      font: { size: 11, color: "#333333" },
+      xanchor: horizontal ? "center" : "right",
+      yanchor: horizontal ? "bottom" : "middle",
+      xshift: horizontal ? 0 : -3,
+      yshift: horizontal ? 2 : 0,
+      textangle: horizontal ? "0" : "-90",
+    });
+  }
+  // 寸法補助線: 対象の辺から少し離して始め、寸法線を少し越えるまで伸ばす
+  const gap = unit * 0.15;
+  const over = unit * 0.25;
+  function extensionY(x: number, yEdge: number, yDim: number) {
+    const dir = Math.sign(yDim - yEdge);
+    thinLine(x, yEdge + gap * dir, x, yDim + over * dir, "solid");
+  }
+  function extensionX(y: number, xEdge: number, xDim: number) {
+    const dir = Math.sign(xDim - xEdge);
+    thinLine(xEdge + gap * dir, y, xDim + over * dir, y, "solid");
+  }
+  function thinLine(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    dash: "solid" | "dashdot",
+  ) {
+    plotShapes.push({
+      type: "line",
+      x0,
+      y0,
+      x1,
+      y1,
+      line: { color: "#999999", width: 0.5, dash },
+    });
+  }
+
+  // 中心線（一点鎖線）
+  const cx = periodNm / 2;
+  const cy = periodYNm / 2;
+  thinLine(cx, -gap * 2, cx, periodYNm + gap * 2, "dashdot");
+  thinLine(-gap * 2, cy, periodNm + gap * 2, cy, "dashdot");
+
+  // 周期: x は上側、y は右側。大きい寸法ほど外側に置く
+  const topY = periodYNm + unit * 2;
+  const rightX = periodNm + unit * 2;
+  extensionY(0, periodYNm, topY);
+  extensionY(periodNm, periodYNm, topY);
+  dimension(0, topY, periodNm, topY, `${periodNm}`);
+  extensionX(0, periodNm, rightX);
+  extensionX(periodYNm, periodNm, rightX);
+  dimension(rightX, 0, rightX, periodYNm, `${periodYNm}`);
+
+  // 形: 円は直径 φ を上側に 1 本、矩形は幅を上側・奥行きを右側（どちらも周期の内側）に。
+  // 左と下は入射の矢印のために空けておく。
+  for (const s of shapes) {
+    const w = s.kind === "circle" ? s.radiusNm * 2 : s.widthNm;
+    const h = s.kind === "circle" ? s.radiusNm * 2 : s.heightNm;
+    const x0 = s.cxNm - w / 2;
+    const x1 = s.cxNm + w / 2;
+    const y0 = s.cyNm - h / 2;
+    const y1 = s.cyNm + h / 2;
+    plotShapes.push({
+      type: s.kind === "circle" ? "circle" : "rect",
+      x0,
+      y0,
+      x1,
+      y1,
+      fillcolor: PALETTE[0],
+      line: { color: "#333333", width: 1 },
+    });
+    const sizeY = periodYNm + unit;
+    extensionY(x0, y1, sizeY);
+    extensionY(x1, y1, sizeY);
+    dimension(x0, sizeY, x1, sizeY, s.kind === "circle" ? `φ${w}` : `${w}`);
+    if (s.kind === "rect") {
+      const sizeX = periodNm + unit;
+      extensionX(y0, x1, sizeX);
+      extensionX(y1, x1, sizeX);
+      dimension(sizeX, y0, sizeX, y1, `${h}`);
     }
   }
+
+  // 単位の注記（寸法数値には付けない）
+  annotations.push({
+    x: rightX,
+    y: -unit,
+    text: "単位 nm",
+    showarrow: false,
+    font: { size: 10, color: "#666666" },
+    xanchor: "right",
+    yanchor: "top",
+  });
+
+  // 入射面: 光の進む向き（x 軸から φ だけ回った向き）に、単位胞の外から中心へ矢印を引く
+  const phi = (phiDeg * Math.PI) / 180;
+  const dir = { x: Math.cos(phi), y: Math.sin(phi) };
+  const half = Math.min(
+    Math.abs(dir.x) > 1e-9 ? periodNm / 2 / Math.abs(dir.x) : Infinity,
+    Math.abs(dir.y) > 1e-9 ? periodYNm / 2 / Math.abs(dir.y) : Infinity,
+  );
+  const tail = half + unit * 1.2;
+  annotations.push({
+    x: cx,
+    y: cy,
+    ax: cx - dir.x * tail,
+    ay: cy - dir.y * tail,
+    axref: "x",
+    ayref: "y",
+    xref: "x",
+    yref: "y",
+    text: "",
+    showarrow: true,
+    arrowhead: 2,
+    arrowsize: 1,
+    arrowwidth: 3,
+    arrowcolor: "#e6b800",
+  });
+  const anchor = (c: number, near: string, far: string, mid: string) =>
+    c > 0.3 ? near : c < -0.3 ? far : mid;
+  annotations.push({
+    x: cx - dir.x * (tail + unit * 0.3),
+    y: cy - dir.y * (tail + unit * 0.3),
+    text: `入射面 φ = ${phiDeg}°`,
+    showarrow: false,
+    font: { size: 12, color: "#8a6d00" },
+    xanchor: anchor(dir.x, "right", "left", "center") as "right",
+    yanchor: anchor(dir.y, "top", "bottom", "middle") as "top",
+  });
 
   return (
     <Plot
@@ -341,16 +462,16 @@ export function TopView({
       layout={{
         autosize: true,
         height: 320,
-        margin: { l: 48, r: 16, t: 8, b: 40 },
+        margin: { l: 8, r: 8, t: 8, b: 8 },
         xaxis: {
-          title: { text: `x (nm) — 周期 ${periodNm}` },
-          range: [-periodNm / 2, periodNm * 1.5],
-          zeroline: false,
+          visible: false,
+          range: [-unit * 5, periodNm + unit * 3.5],
+          fixedrange: true,
         },
         yaxis: {
-          title: { text: `y (nm) — 周期 ${periodYNm}` },
-          range: [-periodYNm / 2, periodYNm * 1.5],
-          zeroline: false,
+          visible: false,
+          range: [-unit * 3, periodYNm + unit * 3.5],
+          fixedrange: true,
           // 上面図は x, y を同じ縮尺で描く（正方形が正方形に見えるように）
           scaleanchor: "x",
           scaleratio: 1,

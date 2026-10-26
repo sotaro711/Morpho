@@ -295,20 +295,21 @@ export default function Lattice3DPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                構造（上面図と断面図）
+                構造（断面図と上面図）
               </CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-4 xl:grid-cols-2">
-              <TopView
-                periodNm={periodNm}
-                periodYNm={periodYNm}
-                shapes={topShapes}
-              />
+            <CardContent className="grid gap-4">
               <CrossSectionView
                 periodNm={sectionPeriodNm}
                 boxes={boxes}
                 substrate={substrate}
                 axis={axis}
+              />
+              <TopView
+                periodNm={periodNm}
+                periodYNm={periodYNm}
+                shapes={topShapes}
+                phiDeg={settings.phiDeg}
               />
             </CardContent>
           </Card>
