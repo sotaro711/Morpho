@@ -370,8 +370,8 @@ export function TopView({
   thinLine(-gap * 2, cy, periodNm + gap * 2, cy, "dashdot");
 
   // 周期: x は上側、y は右側。大きい寸法ほど外側に置く
-  const topY = periodYNm + unit * 2;
-  const rightX = periodNm + unit * 2;
+  const topY = periodYNm + unit * 3;
+  const rightX = periodNm + unit * 3;
   extensionY(0, periodYNm, topY);
   extensionY(periodNm, periodYNm, topY);
   dimension(0, topY, periodNm, topY, `${periodNm}`);
@@ -397,12 +397,12 @@ export function TopView({
       fillcolor: PALETTE[0],
       line: { color: "#333333", width: 1 },
     });
-    const sizeY = periodYNm + unit;
+    const sizeY = periodYNm + unit * 1.5;
     extensionY(x0, y1, sizeY);
     extensionY(x1, y1, sizeY);
     dimension(x0, sizeY, x1, sizeY, s.kind === "circle" ? `φ${w}` : `${w}`);
     if (s.kind === "rect") {
-      const sizeX = periodNm + unit;
+      const sizeX = periodNm + unit * 1.5;
       extensionX(y0, x1, sizeX);
       extensionX(y1, x1, sizeX);
       dimension(sizeX, y0, sizeX, y1, `${h}`);
@@ -473,16 +473,16 @@ export function TopView({
       data={[]}
       layout={{
         autosize: true,
-        height: 320,
+        height: 440,
         margin: { l: 8, r: 8, t: 8, b: 8 },
         xaxis: {
           visible: false,
-          range: [-unit * 5, periodNm + unit * 3.5],
+          range: [-unit * 5, periodNm + unit * 4.5],
           fixedrange: true,
         },
         yaxis: {
           visible: false,
-          range: [-unit * 3, periodYNm + unit * 3.5],
+          range: [-unit * 3, periodYNm + unit * 4.5],
           fixedrange: true,
           // 上面図は x, y を同じ縮尺で描く（正方形が正方形に見えるように）
           scaleanchor: "x",

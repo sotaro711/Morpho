@@ -68,18 +68,9 @@ const COLOR_SWEEP_WL = { wlMin: 380, wlMax: 780, wlPoints: 41 };
 const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
 const ANGLE_SWEEP_WL = { wavelengthsNm: [400, 470, 540, 600, 700] };
 
-const TEMPLATES: { value: Template3D; label: string; description: string }[] = [
-  {
-    value: "sphere",
-    label: "球の配列",
-    description: "正方格子の各点に球が 1 つ基板の上に載る（Mie 共鳴の構造色）",
-  },
-  {
-    value: "pillar",
-    label: "角柱の段差",
-    description:
-      "正方格子の各点に角柱（基板上げ）があり、その上に多層膜を成膜する",
-  },
+const TEMPLATES: { value: Template3D; label: string }[] = [
+  { value: "sphere", label: "球の配列" },
+  { value: "pillar", label: "角柱の段差" },
 ];
 
 export default function Lattice3DPage() {
@@ -152,8 +143,6 @@ export default function Lattice3DPage() {
     template === "sphere"
       ? sphereBoxes(sim.sphere, axis)
       : pillarBoxes(sim.pillar, sim.pillarFilms, sim.pillarSubstrate, axis);
-  const numBasis =
-    template === "sphere" ? sim.sphere.numBasis : sim.pillar.numBasis;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-6">
@@ -182,10 +171,6 @@ export default function Lattice3DPage() {
                   </SelectContent>
                 </Select>
               </Field>
-              <p className="text-xs text-muted-foreground">
-                {TEMPLATES.find((t) => t.value === template)?.description}
-                。x, y の 2 方向に周期をもって並ぶ。
-              </p>
               {template === "sphere" ? (
                 <SphereForm value={sim.sphere} onChange={sim.setSphere} />
               ) : (
@@ -246,7 +231,7 @@ export default function Lattice3DPage() {
             </CardHeader>
             <CardContent className="grid gap-3">
               <SettingsForm value={settings} onChange={patchSettings} />
-              <Field label="入射面（光が入ってくる向き）">
+              <Field label="入射面">
                 <Select
                   value={String(settings.phiDeg)}
                   onValueChange={(v) => patchSettings({ phiDeg: Number(v) })}
@@ -255,14 +240,11 @@ export default function Lattice3DPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0">x 方向（xz 面、φ = 0°）</SelectItem>
-                    <SelectItem value="90">y 方向（yz 面、φ = 90°）</SelectItem>
+                    <SelectItem value="0">x 方向</SelectItem>
+                    <SelectItem value="90">y 方向</SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
-              <p className="text-xs text-muted-foreground">
-                基底数 {numBasis}。計算時間は基底数のほぼ 3 乗で増える。
-              </p>
             </CardContent>
           </Card>
 

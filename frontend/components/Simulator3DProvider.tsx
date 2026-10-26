@@ -13,24 +13,12 @@ import {
   type Template3D,
 } from "@/lib/lattice3d";
 import {
+  DEFAULT_FILMS,
   DEFAULT_SETTINGS,
   DEFAULT_SUBSTRATE,
   type Medium,
   type Settings,
 } from "@/lib/stack";
-
-// 角柱の上に成膜する多層膜の初期値: 研究スライドの TiO2/SiO2 7.5 ペア（λ0 = 470nm）。
-function defaultPillarFilms(): EditableLayer[] {
-  const tio2 = { name: "TiO2", thicknessNm: 51, n: 2.3, k: 0 };
-  const sio2 = { name: "SiO2", thicknessNm: 81, n: 1.45, k: 0 };
-  const films: EditableLayer[] = [];
-  for (let i = 0; i < 7; i++) {
-    films.push({ id: crypto.randomUUID(), ...tio2, regions: [] });
-    films.push({ id: crypto.randomUUID(), ...sio2, regions: [] });
-  }
-  films.push({ id: crypto.randomUUID(), ...tio2, regions: [] });
-  return films;
-}
 
 function useSimulator3DState() {
   const [template, setTemplate] = useState<Template3D>("sphere");
@@ -40,7 +28,7 @@ function useSimulator3DState() {
     useState<Medium>(DEFAULT_SUBSTRATE);
   const [pillar, setPillar] = useState<PillarConfig>(DEFAULT_PILLAR);
   const [pillarFilms, setPillarFilms] =
-    useState<EditableLayer[]>(defaultPillarFilms);
+    useState<EditableLayer[]>(DEFAULT_FILMS);
   const [pillarSubstrate, setPillarSubstrate] =
     useState<Medium>(DEFAULT_SUBSTRATE);
   const [mode, setMode] = useState<DiffractionMode>("zeroth");
