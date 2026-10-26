@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   wlMax: 780,
   wlPoints: 81,
   pol: "s",
+  phiDeg: 0, // 入射面は xz 面。3 次元構造のページでだけ切り替える
   numBasis: 1, // 平面多層膜は 0 次のみで厳密（周期構造対応時に増やす）
 };
 

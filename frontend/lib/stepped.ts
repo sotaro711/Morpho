@@ -64,7 +64,7 @@ const AIR: Medium = { name: "空気", n: 1.0, k: 0 };
 /** 1 カラムを構成するスラブ（下 = 基板側 → 上 = 入射側の順）。 */
 export type Slab = { name: string; thicknessNm: number } & Optics;
 
-function columnProfile(
+export function columnProfile(
   films: EditableLayer[],
   substrate: Medium,
   raised: boolean,
@@ -89,7 +89,7 @@ function columnProfile(
 }
 
 /** プロファイル中の高さ z の材料。スタックの上（空気）なら null。 */
-function materialAt(prof: Slab[], zNm: number): Slab | null {
+export function materialAt(prof: Slab[], zNm: number): Slab | null {
   let z0 = 0;
   for (const slab of prof) {
     if (z0 <= zNm && zNm < z0 + slab.thicknessNm) return slab;
@@ -147,7 +147,14 @@ export function toSteppedSimulationRequest(
       const slab = materialAt(col.prof, zMid);
       return slab === null
         ? []
-        : [{ xNm: col.xNm, widthNm: col.widthNm, ...apiOptics(slab) }];
+        : [
+            {
+              shape: "stripe" as const,
+              xNm: col.xNm,
+              widthNm: col.widthNm,
+              ...apiOptics(slab),
+            },
+          ];
     });
     layers.push({
       name: `slice${i}`,
@@ -157,7 +164,12 @@ export function toSteppedSimulationRequest(
       regions,
     });
   }
-  layers.push({ name: substrate.name, thicknessNm: 0, ...apiOptics(substrate), regions: [] });
+  layers.push({
+    name: substrate.name,
+    thicknessNm: 0,
+    ...apiOptics(substrate),
+    regions: [],
+  });
 
   return {
     ...settings,

@@ -5,21 +5,35 @@ import type { Annotations, Shape } from "plotly.js";
 import { useMaterials } from "@/components/MaterialsProvider";
 import Plot from "@/components/Plot";
 import type { LayerDTO } from "@/lib/api/client";
+import type { Box, SectionAxis, TopShape } from "@/lib/lattice3d";
 import type { StructureColumn } from "@/lib/stepped";
 
 // 構造の2次元断面図（横軸=位置, 縦軸=高さ）。入力の層データだけから描く（API 不要）。
 // stepped が渡されたら段付きモード: カラムごとの矩形を実寸の x 座標で描く。
 
 const PALETTE = [
-  "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-  "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+  "#1f77b4",
+  "#ff7f0e",
+  "#2ca02c",
+  "#d62728",
+  "#9467bd",
+  "#8c564b",
+  "#e377c2",
+  "#7f7f7f",
+  "#bcbd22",
+  "#17becf",
 ];
 
 // 平面多層膜には面内の周期が無いので、断面図の横幅は表示用の公称値を使う。
 const DISPLAY_WIDTH = 100;
 
 // materialId があれば登録した材料（波長分散）で、n, k は使わない。
-type Optical = { name: string; n?: number | null; k: number; materialId?: string | null };
+type Optical = {
+  name: string;
+  n?: number | null;
+  k: number;
+  materialId?: string | null;
+};
 
 // 材料 id → 材料名。
 type MaterialNames = Map<string, string>;
@@ -35,12 +49,16 @@ function materialKey({ n, k, materialId }: Optical): string {
 function assignColors(keys: Iterable<string>): Map<string, string> {
   const colorOf = new Map<string, string>();
   for (const key of keys) {
-    if (!colorOf.has(key)) colorOf.set(key, PALETTE[colorOf.size % PALETTE.length]);
+    if (!colorOf.has(key))
+      colorOf.set(key, PALETTE[colorOf.size % PALETTE.length]);
   }
   return colorOf;
 }
 
-function formatIndex({ name, n, k, materialId }: Optical, names: MaterialNames): string {
+function formatIndex(
+  { name, n, k, materialId }: Optical,
+  names: MaterialNames,
+): string {
   if (materialId) {
     const materialName = names.get(materialId);
     // 層名が材料名と同じなら繰り返さない。
@@ -164,12 +182,205 @@ function SteppedView({
   );
 }
 
+/**
+ * 3 次元構造の断面（y = 周期/2 の xz 面）。箱の並びをそのまま実寸で描く。
+ * 球の輪切りや角柱の多層膜など、カラムに分けられない形のための汎用版。
+ */
+export function CrossSectionView({
+  periodNm,
+  boxes,
+  substrate,
+  axis = "x",
+}: {
+  periodNm: number;
+  boxes: Box[];
+  substrate: Optical;
+  axis?: SectionAxis;
+}) {
+  const { materials } = useMaterials();
+  const names: MaterialNames = new Map(materials.map((m) => [m.id, m.name]));
+  // 色は上の箱から順に割り当て、基板は最後（平面・段付きと同じ規約）。
+  const substrateKey = materialKey(substrate);
+  const ordered = [...boxes].sort((a, b) => b.z1 - a.z1);
+  const colorOf = assignColors([
+    ...ordered.map(materialKey).filter((key) => key !== substrateKey),
+    substrateKey,
+  ]);
+
+  const maxTop = Math.max(0, ...boxes.map((b) => b.z1));
+  const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
+
+  const shapes: Partial<Shape>[] = [
+    rect(0, 0, periodNm, subH, colorOf.get(substrateKey)!),
+    ...boxes.map((b) =>
+      rect(
+        b.x0,
+        subH + b.z0,
+        b.x1,
+        subH + b.z1,
+        colorOf.get(materialKey(b)) ?? "#cccccc",
+      ),
+    ),
+  ];
+  const annotations: Partial<Annotations>[] = [
+    {
+      x: periodNm / 2,
+      y: subH / 2,
+      text: `${substrate.name} (${formatIndex(substrate, names)})`,
+      showarrow: false,
+      font: { color: "#ffffff", size: 11 },
+    },
+  ];
+
+  return (
+    <Plot
+      data={[]}
+      layout={{
+        autosize: true,
+        height: 320,
+        margin: { l: 48, r: 16, t: 8, b: 40 },
+        xaxis: {
+          title: {
+            text:
+              axis === "x"
+                ? "x (nm) — 1 周期分（y = 周期/2 を通る xz 断面 = 入射面）"
+                : "y (nm) — 1 周期分（x = 周期/2 を通る yz 断面 = 入射面）",
+          },
+          range: [0, periodNm],
+          zeroline: false,
+        },
+        yaxis: {
+          title: { text: "高さ (nm)" },
+          range: [0, subH + maxTop * 1.05],
+          zeroline: false,
+        },
+        shapes,
+        annotations,
+        plot_bgcolor: "#ffffff",
+      }}
+      useResizeHandler
+      style={{ width: "100%" }}
+      config={{ displayModeBar: false, responsive: true }}
+    />
+  );
+}
+
+/**
+ * 3 次元構造の上面図（xy 面）。中央の単位胞を濃く、周囲 8 個の繰り返しを薄く描いて
+ * 2 方向に周期があることを見せる。
+ */
+export function TopView({
+  periodNm,
+  periodYNm,
+  shapes,
+}: {
+  periodNm: number;
+  periodYNm: number;
+  shapes: TopShape[];
+}) {
+  const plotShapes: Partial<Shape>[] = [];
+  const annotations: Partial<Annotations>[] = [];
+  for (const dx of [-1, 0, 1]) {
+    for (const dy of [-1, 0, 1]) {
+      const center = dx === 0 && dy === 0;
+      const ox = dx * periodNm;
+      const oy = dy * periodYNm;
+      const line = { color: center ? "#333333" : "#bbbbbb", width: 1 };
+      // 単位胞の枠
+      plotShapes.push({
+        type: "rect",
+        x0: ox,
+        y0: oy,
+        x1: ox + periodNm,
+        y1: oy + periodYNm,
+        line: { ...line, dash: center ? "solid" : "dot" },
+      });
+      for (const s of shapes) {
+        const fillcolor = center ? PALETTE[0] : "rgba(31, 119, 180, 0.25)";
+        if (s.kind === "circle") {
+          plotShapes.push({
+            type: "circle",
+            x0: ox + s.cxNm - s.radiusNm,
+            y0: oy + s.cyNm - s.radiusNm,
+            x1: ox + s.cxNm + s.radiusNm,
+            y1: oy + s.cyNm + s.radiusNm,
+            fillcolor,
+            line,
+          });
+        } else {
+          plotShapes.push({
+            type: "rect",
+            x0: ox + s.cxNm - s.widthNm / 2,
+            y0: oy + s.cyNm - s.heightNm / 2,
+            x1: ox + s.cxNm + s.widthNm / 2,
+            y1: oy + s.cyNm + s.heightNm / 2,
+            fillcolor,
+            line,
+          });
+        }
+        if (center) {
+          const size =
+            s.kind === "circle"
+              ? `⌀${s.radiusNm * 2}`
+              : `${s.widthNm}×${s.heightNm}`;
+          annotations.push({
+            x: s.cxNm,
+            y: s.cyNm,
+            text: `${s.name}<br>${size} nm`,
+            showarrow: false,
+            font: { color: "#ffffff", size: 11 },
+          });
+        }
+      }
+    }
+  }
+
+  return (
+    <Plot
+      data={[]}
+      layout={{
+        autosize: true,
+        height: 320,
+        margin: { l: 48, r: 16, t: 8, b: 40 },
+        xaxis: {
+          title: { text: `x (nm) — 周期 ${periodNm}` },
+          range: [-periodNm / 2, periodNm * 1.5],
+          zeroline: false,
+        },
+        yaxis: {
+          title: { text: `y (nm) — 周期 ${periodYNm}` },
+          range: [-periodYNm / 2, periodYNm * 1.5],
+          zeroline: false,
+          // 上面図は x, y を同じ縮尺で描く（正方形が正方形に見えるように）
+          scaleanchor: "x",
+          scaleratio: 1,
+        },
+        shapes: plotShapes,
+        annotations,
+        plot_bgcolor: "#ffffff",
+      }}
+      useResizeHandler
+      style={{ width: "100%" }}
+      config={{ displayModeBar: false, responsive: true }}
+    />
+  );
+}
+
 /** 平面モード: 従来どおり全層を横幅いっぱいの帯として描く。 */
-function PlanarView({ layers, names }: { layers: LayerDTO[]; names: MaterialNames }) {
+function PlanarView({
+  layers,
+  names,
+}: {
+  layers: LayerDTO[];
+  names: MaterialNames;
+}) {
   const colorOf = assignColors(layers.map(materialKey));
 
   // 表示用の各層の高さ。半無限層（厚さ0）には名目高さを与える。
-  const finiteSum = layers.reduce((s, l) => s + (l.thicknessNm > 0 ? l.thicknessNm : 0), 0);
+  const finiteSum = layers.reduce(
+    (s, l) => s + (l.thicknessNm > 0 ? l.thicknessNm : 0),
+    0,
+  );
   const nominal = Math.max(finiteSum * 0.25, 60);
   const dispH = (l: LayerDTO) => (l.thicknessNm > 0 ? l.thicknessNm : nominal);
 
@@ -206,8 +417,16 @@ function PlanarView({ layers, names }: { layers: LayerDTO[]; names: MaterialName
         height: 320,
         margin: { l: 48, r: 16, t: 8, b: 40 },
         // 平面多層膜なので横方向は意味を持たない。軸は隠す。
-        xaxis: { range: [0, DISPLAY_WIDTH], zeroline: false, showticklabels: false },
-        yaxis: { title: { text: "高さ (nm)" }, range: [0, total], zeroline: false },
+        xaxis: {
+          range: [0, DISPLAY_WIDTH],
+          zeroline: false,
+          showticklabels: false,
+        },
+        yaxis: {
+          title: { text: "高さ (nm)" },
+          range: [0, total],
+          zeroline: false,
+        },
         shapes,
         annotations,
         plot_bgcolor: "#ffffff",
