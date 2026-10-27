@@ -23,7 +23,10 @@ spec:
         run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containerConcurrency: 80
-      timeoutSeconds: 300
+      # 3 次元構造の計算（角柱の段差、基底 49）は 1 リクエストで数百秒かかるので、
+      # 既定の 300 秒では打ち切られる（2026-10-27 に本番で 504）。非同期ジョブ化までの間は
+      # 長めに取る
+      timeoutSeconds: 1800
       serviceAccountName: 393004586204-compute@developer.gserviceaccount.com
       containers:
         - name: placeholder-1
@@ -46,7 +49,8 @@ spec:
                   key: latest
           resources:
             limits:
-              cpu: 1000m
+              # 1 vCPU では 3 次元構造の計算が手元の数倍かかりタイムアウトしたので 2 vCPU にする
+              cpu: 2000m
               memory: 1Gi
           # 起動時の確認（S4 など）は _lifespan で行い、失敗すればプロセスが終了するので、
           # ポートが開いたかを見る TCP の確認で足りる
