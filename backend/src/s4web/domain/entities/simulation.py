@@ -31,10 +31,11 @@ class DiffractionMode(StrEnum):
     TOTAL = "total"
 
 
-# 基底数の上限。1D 格子では GUI の最大回折次数 ±30（2*30+1 = 61）、x, y の 2 方向に
-# 周期を持つ構造では ±7 次（15*15 = 225。球配列の検証で基底 81〜169 が必要だった）
-# に対応する。これ以上は計算時間（基底数のほぼ 3 乗）が実用範囲を超えるため受け付けない。
+# 基底数の上限。これ以上は計算時間（基底数のほぼ 3 乗）が実用範囲を超えるため受け付けない。
+# x, y の 2 方向に周期を持つ構造では ±7 次（15*15 = 225。球配列の検証で基底 81〜169 が
+# 必要だった）、1D 格子では GUI の最大回折次数 ±30（2*30+1 = 61）に対応する。
 NUM_BASIS_LIMIT = 225
+NUM_BASIS_LIMIT_1D = 61
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,11 @@ class SimulationCondition:
             raise ValueError(f"azimuth_deg must be in [0, 360), got {self.azimuth_deg}")
         if self.azimuth_deg != 0.0 and self.period_y_nm is None:
             raise ValueError("azimuth_deg requires period_y_nm (biperiodic structure)")
+        if self.period_y_nm is None and self.num_basis > NUM_BASIS_LIMIT_1D:
+            raise ValueError(
+                f"num_basis must be <= {NUM_BASIS_LIMIT_1D} unless period_y_nm is set "
+                f"(biperiodic structure), got {self.num_basis}"
+            )
         self._validate_regions()
         self._validate_dispersion_ranges()
 

@@ -69,6 +69,38 @@ def test_azimuth_requires_a_biperiodic_structure() -> None:
         )
 
 
+def _with_basis(period_y_nm: float | None, num_basis: int) -> SimulationCondition:
+    regions = (CircleRegion(SI, 200, 200, 100),) if period_y_nm else (Region(SI, 0, 200),)
+    return SimulationCondition(
+        wl_min_nm=400,
+        wl_max_nm=700,
+        wl_points=31,
+        theta_deg=0.0,
+        polarization=Polarization.S,
+        layers=(
+            Layer("air", 0, AIR),
+            Layer("grating", 100, AIR, regions),
+            Layer("sub", 0, SUBSTRATE),
+        ),
+        period_nm=400,
+        period_y_nm=period_y_nm,
+        num_basis=num_basis,
+    )
+
+
+def test_1d_grating_accepts_up_to_61_basis() -> None:
+    assert _with_basis(None, 61).num_basis == 61
+
+
+def test_1d_grating_rejects_more_than_61_basis() -> None:
+    with pytest.raises(ValueError, match="num_basis must be <= 61 unless period_y_nm"):
+        _with_basis(None, 63)
+
+
+def test_biperiodic_structure_accepts_225_basis() -> None:
+    assert _with_basis(400, 225).num_basis == 225
+
+
 def test_azimuth_must_be_in_range() -> None:
     sliced = Layer("slice", 10, AIR, (CircleRegion(SI, 80, 80, 60),))
     with pytest.raises(ValueError, match="azimuth_deg must be in"):
