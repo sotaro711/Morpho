@@ -63,12 +63,10 @@ const AngleSpectraChart = dynamic(
 
 // 見た目の色・角度別スペクトル用: 0/30/60°、波長は 10nm 間隔(色変換できる間隔)。
 const COLOR_THETAS = [0, 30, 60];
-// 3 次元構造は 1 波長の計算が重い（角柱の段差で手元 0.5 秒、本番はその数倍）ので、
-// 2 次元ページより波長点数と角度スイープの波長を減らして 1 回の計算を短くする
-const COLOR_SWEEP_WL = { wlMin: 380, wlMax: 780, wlPoints: 21 };
+const COLOR_SWEEP_WL = { wlMin: 380, wlMax: 780, wlPoints: 41 };
 // 角度スイープチャート用: 2 次元ページと同じ -80〜80° を 10° 刻み、代表 5 波長。
 const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
-const ANGLE_SWEEP_WL = { wavelengthsNm: [470, 550, 650] };
+const ANGLE_SWEEP_WL = { wavelengthsNm: [400, 470, 540, 600, 700] };
 
 const TEMPLATES: { value: Template3D; label: string }[] = [
   { value: "sphere", label: "球の配列" },
