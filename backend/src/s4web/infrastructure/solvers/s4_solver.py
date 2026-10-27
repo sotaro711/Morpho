@@ -17,7 +17,11 @@ R/T は回折 0 次（正反射・直進透過）の成分（詳細は _solve_at
 数値安定化（面内パターン時のみ。Rayleigh 点 / Wood アノマリー対策）:
   - SetOptions(PolarizationDecomposition=True): 金属を含む格子の収束改善。
     1D 格子だけで有効にする。誘電体の円領域を持つ 2 方向周期の格子では逆に収束を
-    著しく悪くした（backend/scripts/mie_sphere_validation.py の docstring）
+    著しく悪くした（backend/scripts/mie_sphere_validation.py の docstring）。
+    金属を含む 2 方向周期の構造（SUS 基板の角柱）では、有効・無効のどちらも基底数に
+    対して収束するが互いに 0.03 ほど違う値に落ち着き、どちらが正しいかは参照解が
+    ないため未確定（backend/scripts/pillar_multilayer_validation.py の docstring）。
+    金属を含む 2 方向周期の反射率には ±0.03 程度の不確かさがあるものとして扱う。
   - 無損失材料に微小吸収 k=1e-4 を付与して固有値の縮退をほどく
   - それでも NaN / 範囲外の R,T になった波長は微小シフトして再計算する
 検証の経緯は backend/scripts/stepped_grating_validation.py の docstring を参照。
