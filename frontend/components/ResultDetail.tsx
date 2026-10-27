@@ -6,12 +6,21 @@ import { useState } from "react";
 import { AngleColorChips } from "@/components/AngleColorChips";
 import { DiffractionModeToggle } from "@/components/DiffractionModeToggle";
 import { useMaterials } from "@/components/MaterialsProvider";
-import type { LayerDTO, ResultDetail as Detail, SimulationRequest } from "@/lib/api/client";
+import type {
+  LayerDTO,
+  ResultDetail as Detail,
+  SimulationRequest,
+} from "@/lib/api/client";
 import { hasDiffractionModes, type DiffractionMode } from "@/lib/diffraction";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
-const AngleSweepChart = dynamic(() => import("@/components/AngleSweepChart"), { ssr: false });
-const AngleSpectraChart = dynamic(() => import("@/components/AngleSpectraChart"), { ssr: false });
+const AngleSweepChart = dynamic(() => import("@/components/AngleSweepChart"), {
+  ssr: false,
+});
+const AngleSpectraChart = dynamic(
+  () => import("@/components/AngleSpectraChart"),
+  { ssr: false },
+);
 
 /** 履歴の 1 件の計算条件（読み取り専用）と結果。 */
 export function ResultDetail({ result }: { result: Detail }) {
@@ -37,7 +46,13 @@ export function ResultDetail({ result }: { result: Detail }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="grid gap-2">
       <h3 className="text-sm font-semibold">{title}</h3>
@@ -46,14 +61,31 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+type Region = LayerDTO["regions"][number];
+
+/** 領域の位置の説明。shape の無い保存済みデータは x 方向の区間（1D 格子）。 */
+function describeRegion(r: Region): string {
+  if (r.shape === "rect") {
+    return `(${r.cxNm}, ${r.cyNm}) ${r.widthNm}×${r.heightNm} nm`;
+  }
+  if (r.shape === "circle") {
+    return `(${r.cxNm}, ${r.cyNm}) r=${r.radiusNm} nm`;
+  }
+  return `x ${r.xNm}–${r.xNm + r.widthNm} nm`;
+}
+
 /**
  * 計算条件。層の先頭は入射側の空気、末尾は基板。
- * 段差ありの構造は保存形式が z 方向のスライスなので、スライスごとに x 方向の区間を並べる。
+ * 段差ありの構造は保存形式が z 方向のスライスなので、スライスごとに領域を並べる。
  */
 function Conditions({ request }: { request: SimulationRequest }) {
   const { materials } = useMaterials();
   // 材料は名前を持たないので、今の材料一覧から引く。削除・改名されていれば分からない。
-  const optics = ({ n, k, materialId }: Pick<LayerDTO, "n" | "k" | "materialId">) =>
+  const optics = ({
+    n,
+    k,
+    materialId,
+  }: Pick<LayerDTO, "n" | "k" | "materialId">) =>
     materialId
       ? (materials.find((m) => m.id === materialId)?.name ?? "削除された材料")
       : `n=${n}, k=${k}`;
@@ -87,7 +119,7 @@ function Conditions({ request }: { request: SimulationRequest }) {
                   {stepped
                     ? `${layer.thicknessNm} nm: ` +
                       layer.regions
-                        .map((r) => `x ${r.xNm}–${r.xNm + r.widthNm} nm ${optics(r)}`)
+                        .map((r) => `${describeRegion(r)} ${optics(r)}`)
                         .join(" / ")
                     : `${layer.name} ${layer.thicknessNm} nm（${optics(layer)}）`}
                 </li>

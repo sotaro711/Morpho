@@ -10,10 +10,18 @@ R/T は回折 0 次（正反射・直進透過）の成分（詳細は _solve_at
 
 平面多層膜（パターンなし）は回折 0 次のみで NumBasis=1 で厳密。格子定数は
 結果に影響しないので公称値を用いる。面内パターン（Layer.regions）を持つ条件では
-実周期を格子に渡し、層ごとに矩形領域を重ねる。
+実周期を格子に渡し、層ごとに領域を重ねる。period_y_nm がある条件は x, y の
+2 方向に周期を持つ格子（Lattice の第 2 ベクトルが (0, Py)）で、円・矩形の領域を
+置ける。回折次数は (m, n) の 2 つになる。
 
 数値安定化（面内パターン時のみ。Rayleigh 点 / Wood アノマリー対策）:
-  - SetOptions(PolarizationDecomposition=True): 金属を含む格子の収束改善
+  - SetOptions(PolarizationDecomposition=True): 金属を含む格子の収束改善。
+    1D 格子だけで有効にする。誘電体の円領域を持つ 2 方向周期の格子では逆に収束を
+    著しく悪くした（backend/scripts/mie_sphere_validation.py の docstring）。
+    金属を含む 2 方向周期の構造（SUS 基板の角柱）では、有効・無効のどちらも基底数に
+    対して収束するが互いに 0.03 ほど違う値に落ち着き、どちらが正しいかは参照解が
+    ないため未確定（backend/scripts/pillar_multilayer_validation.py の docstring）。
+    金属を含む 2 方向周期の反射率には ±0.03 程度の不確かさがあるものとして扱う。
   - 無損失材料に微小吸収 k=1e-4 を付与して固有値の縮退をほどく
   - それでも NaN / 範囲外の R,T になった波長は微小シフトして再計算する
 検証の経緯は backend/scripts/stepped_grating_validation.py の docstring を参照。
@@ -28,7 +36,7 @@ import math
 import S4  # type: ignore[import-not-found]
 
 from s4web.domain.entities.diffraction import AngularDistribution, DiffractionOrder
-from s4web.domain.entities.layer import Layer
+from s4web.domain.entities.layer import CircleRegion, Layer, RectRegion, Region
 from s4web.domain.entities.material import OpticalMaterial
 from s4web.domain.entities.simulation import (
     Polarization,
@@ -90,21 +98,21 @@ class S4Solver(SolverPort):
         sim = self._build(condition)
 
         top_name = _layer_name(0, condition.layers[0])
-        if condition.period_nm is not None:
-            period_um = condition.period_nm / _NM_PER_UM
-        else:
-            period_um = _NOMINAL_PERIOD_UM
+        periods_um = _periods_um(condition)
+        # 入射波の面内方向（sinθ を方位角 φ で x, y に分ける）。
         sin_in = math.sin(math.radians(condition.theta_deg))
+        phi = math.radians(condition.azimuth_deg)
+        sin_in_xy = (sin_in * math.cos(phi), sin_in * math.sin(phi))
 
         distributions: list[AngularDistribution] = []
         for wl_nm in condition.wavelengths_nm():
             _update_materials(sim, condition, wl_nm)
-            orders = _orders_at(sim, top_name, wl_nm, sin_in, period_um)
+            orders = _orders_at(sim, top_name, wl_nm, sin_in_xy, periods_um)
             if orders is None and condition.is_patterned:
                 # スペクトル計算と同じ Rayleigh 点対策（波長微小シフトで解き直す）。
                 for shift in _WL_SHIFTS_NM:
                     _update_materials(sim, condition, wl_nm + shift)
-                    orders = _orders_at(sim, top_name, wl_nm + shift, sin_in, period_um)
+                    orders = _orders_at(sim, top_name, wl_nm + shift, sin_in_xy, periods_um)
                     if orders is not None:
                         break
             # 回復不能な波長は空の分布（呼び出し側は「データなし」として扱える）。
@@ -115,18 +123,17 @@ class S4Solver(SolverPort):
         # 戻り値は S4 のシミュレーションオブジェクト（S4 の型は未公開なので注釈しない）。
         # RCWA の計算空間を作る。NumBasis = RCWA が保持するフーリエ次数（逆格子ベクトル G）
         # の数。面内パターンがあれば実周期を、無ければ公称値を格子に渡す。
+        # 1D 格子は第 2 ベクトルを 0 にし、2 方向周期なら (0, Py) にする。
         patterned = condition.is_patterned
-        if condition.period_nm is not None:
-            period_um = condition.period_nm / _NM_PER_UM
-        else:
-            period_um = _NOMINAL_PERIOD_UM
+        period_um, period_y_um = _periods_um(condition)
         sim = S4.New(
-            Lattice=((period_um, 0.0), (0.0, 0.0)),  # 1D 格子（第2ベクトルは0）
+            Lattice=((period_um, 0.0), (0.0, period_y_um)),
             NumBasis=condition.num_basis,
         )
-        if patterned:
+        if patterned and not condition.is_biperiodic:
             # 金属を含む格子の収束改善（Li の因子化）。平面多層膜では不要なので
-            # 既存の計算経路を変えないよう、パターン時のみ有効化する。
+            # 既存の計算経路を変えないよう、パターン時のみ有効化する。2 方向周期では
+            # 誘電体の円領域で収束が著しく悪くなるため使わない（モジュール docstring）。
             sim.SetOptions(PolarizationDecomposition=True)
 
         # 各材料の比誘電率 ε を登録する（RCWA はこの ε をフーリエ空間で扱う）。
@@ -135,7 +142,7 @@ class S4Solver(SolverPort):
         _set_materials(sim, condition, condition.wavelengths_nm()[0])
 
         # 層を入射側から順に追加する。regions を持つ層は、層の材料を背景として
-        # 矩形領域を重ねる（S4 の Center/Halfwidths は単位胞座標・μm）。
+        # 領域を重ねる（S4 の Center/Halfwidths/Radius は単位胞座標・μm）。
         for i, layer in enumerate(condition.layers):
             layer_name = _layer_name(i, layer)
             sim.AddLayer(
@@ -144,13 +151,7 @@ class S4Solver(SolverPort):
                 S4_Material=_mat_name(i),
             )
             for j, region in enumerate(layer.regions):
-                sim.SetRegionRectangle(
-                    S4_Layer=layer_name,
-                    S4_Material=_region_mat_name(i, j),
-                    Center=((region.x_nm + region.width_nm / 2.0) / _NM_PER_UM, 0.0),
-                    Angle=0.0,
-                    Halfwidths=(region.width_nm / 2.0 / _NM_PER_UM, 0.0),
-                )
+                _set_region(sim, layer_name, _region_mat_name(i, j), region, period_y_um)
 
         # 入射する平面波（境界条件）を定義する。入射角 θ と偏光を与える。
         # s 偏光 → sAmplitude のみ、p 偏光 → pAmplitude のみ。
@@ -158,16 +159,57 @@ class S4Solver(SolverPort):
             s_amp, p_amp = 1.0, 0.0
         else:
             s_amp, p_amp = 0.0, 1.0
-        # 負の入射角(角度スイープ用)は「極角 |θ|・方位角 180°」= 反対側からの
-        # 入射として S4 に渡す。
+        # 負の入射角(角度スイープ用)は「極角 |θ|・方位角 +180°」= 反対側からの
+        # 入射として S4 に渡す。方位角は入射面の向き（0 = xz 面、90 = yz 面）。
         theta = condition.theta_deg
-        incidence = (theta, 0.0) if theta >= 0 else (-theta, 180.0)
+        azimuth = condition.azimuth_deg
+        incidence = (theta, azimuth) if theta >= 0 else (-theta, (azimuth + 180.0) % 360.0)
         sim.SetExcitationPlanewave(
             IncidenceAngles=incidence,  # (polar, azimuth) degrees
             sAmplitude=s_amp,
             pAmplitude=p_amp,
         )
         return sim
+
+
+def _periods_um(condition: SimulationCondition) -> tuple[float, float]:
+    """格子に渡す周期 (Px, Py)（μm）。パターンなしは公称値、1D 格子は Py=0。"""
+    if condition.period_nm is None:
+        return _NOMINAL_PERIOD_UM, 0.0
+    period_y_um = condition.period_y_nm / _NM_PER_UM if condition.period_y_nm is not None else 0.0
+    return condition.period_nm / _NM_PER_UM, period_y_um
+
+
+def _set_region(
+    sim,
+    layer_name: str,
+    material_name: str,
+    region: Region | CircleRegion | RectRegion,
+    period_y_um: float,
+) -> None:
+    if isinstance(region, CircleRegion):
+        sim.SetRegionCircle(
+            S4_Layer=layer_name,
+            S4_Material=material_name,
+            Center=(region.cx_nm / _NM_PER_UM, region.cy_nm / _NM_PER_UM),
+            Radius=region.radius_nm / _NM_PER_UM,
+        )
+        return
+    if isinstance(region, RectRegion):
+        center = (region.cx_nm / _NM_PER_UM, region.cy_nm / _NM_PER_UM)
+        halfwidths = (region.width_nm / 2.0 / _NM_PER_UM, region.height_nm / 2.0 / _NM_PER_UM)
+    else:
+        # x 方向の区間。2 方向周期の格子に置くときは y 方向に単位胞いっぱいに伸ばす
+        # （1D 格子では y 方向の半幅 0 で S4 が一様と解釈する）。
+        center = ((region.x_nm + region.width_nm / 2.0) / _NM_PER_UM, period_y_um / 2.0)
+        halfwidths = (region.width_nm / 2.0 / _NM_PER_UM, period_y_um / 2.0)
+    sim.SetRegionRectangle(
+        S4_Layer=layer_name,
+        S4_Material=material_name,
+        Center=center,
+        Angle=0.0,
+        Halfwidths=halfwidths,
+    )
 
 
 def _solve_at(sim, top_name: str, bottom_name: str, wl_nm: float) -> tuple[float, float, float]:
@@ -206,34 +248,55 @@ def _solve_at(sim, top_name: str, bottom_name: str, wl_nm: float) -> tuple[float
 
 
 def _orders_at(
-    sim, top_name: str, wl_nm: float, sin_in: float, period_um: float
+    sim,
+    top_name: str,
+    wl_nm: float,
+    sin_in_xy: tuple[float, float],
+    periods_um: tuple[float, float],
 ) -> tuple[DiffractionOrder, ...] | None:
     """1 波長の回折次数ごとの反射パワーと出射角。数値異常なら None を返す。
 
     GetPowerFluxByOrder は入射側層のフラックスを基底（次数）ごとに返す。
-    各次数の後退波が R_m。出射角は格子方程式 sinθ_m = sinθ_in + mλ/L から求め、
-    |sinθ_m| > 1 の次数は伝搬しない（遠方に届かない）ので除外する。
+    各次数の後退波が R_m。出射方向は格子方程式 sinθ_x = sinθ_in,x + mλ/Px、
+    sinθ_y = sinθ_in,y + nλ/Py から求め、面内成分の大きさが 1 を超える次数は
+    伝搬しない（遠方に届かない）ので除外する。1D 格子では入射面が xz 面で n = 0 だけ、
+    出射角は符号付き（負は入射側と反対方向）。2 方向周期では極角（≥ 0）と方位角で表す。
     """
     wl_um = wl_nm / _NM_PER_UM
+    period_um, period_y_um = periods_um
+    sin_in, sin_in_y = sin_in_xy
     sim.SetFrequency(1.0 / wl_um)
     fluxes = sim.GetPowerFluxByOrder(S4_Layer=top_name)
-    basis = sim.GetBasisSet()  # ((m, 0), ...) 1D 格子なので第2成分は 0
+    basis = sim.GetBasisSet()  # ((m, n), ...)。1D 格子では n は常に 0
     incident = sum(f.real for f, _ in fluxes)
     if incident == 0.0 or math.isnan(incident):
         return None
 
     orders: list[DiffractionOrder] = []
     total_r = 0.0
-    for g, flux in zip(basis, fluxes, strict=True):
-        m = g[0]
+    for (m, n), flux in zip(basis, fluxes, strict=True):
         r_m = -flux[1].real / incident
         total_r += r_m
-        sin_m = sin_in + m * wl_um / period_um
-        if abs(sin_m) <= 1.0:
-            orders.append(DiffractionOrder(m, math.degrees(math.asin(sin_m)), r_m))
+        sin_x = sin_in + m * wl_um / period_um
+        if period_y_um == 0.0:
+            if abs(sin_x) <= 1.0:
+                orders.append(DiffractionOrder(m, math.degrees(math.asin(sin_x)), r_m))
+            continue
+        sin_y = sin_in_y + n * wl_um / period_y_um
+        sin_polar = math.hypot(sin_x, sin_y)
+        if sin_polar <= 1.0:
+            orders.append(
+                DiffractionOrder(
+                    m,
+                    math.degrees(math.asin(sin_polar)),
+                    r_m,
+                    order_y=n,
+                    azimuth_deg=math.degrees(math.atan2(sin_y, sin_x)),
+                )
+            )
     if math.isnan(total_r) or total_r < -0.01 or total_r > 1.05:
         return None
-    orders.sort(key=lambda o: o.angle_deg)
+    orders.sort(key=lambda o: (o.angle_deg, o.azimuth_deg))
     return tuple(orders)
 
 

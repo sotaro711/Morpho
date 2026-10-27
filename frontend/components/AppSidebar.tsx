@@ -1,8 +1,15 @@
 "use client";
 
-import { FlaskConical, History, LogOut, Sigma } from "lucide-react";
+import {
+  ChevronRight,
+  FlaskConical,
+  History,
+  LogOut,
+  Sigma,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Collapsible } from "radix-ui";
 
 import { useAuth } from "@/components/AuthProvider";
 import {
@@ -15,15 +22,30 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/lib/supabase";
 
-export const NAV_ITEMS = [
-  { href: "/", label: "計算", icon: Sigma },
+/** 計算ページ。構造の次元で分ける（サイドバーでは「計算」の下にまとめる）。 */
+const CALC_PAGES = [
+  { href: "/", label: "2次元", title: "計算 — 2次元（多層膜・段差）" },
+  {
+    href: "/3d",
+    label: "3次元",
+    title: "計算 — 3次元（球の配列・角柱の段差）",
+  },
+] as const;
+
+const OTHER_PAGES = [
   { href: "/materials", label: "材料", icon: FlaskConical },
   { href: "/history", label: "履歴", icon: History },
 ] as const;
+
+/** 全ページ。ヘッダのタイトル表示に使う。 */
+export const NAV_ITEMS = [...CALC_PAGES, ...OTHER_PAGES] as const;
 
 // Vercel のサイドバーに合わせ、項目を 36px の高さで少し間を空けて並べる。
 const ITEM_CLASS = "h-9 gap-3 px-3";
@@ -36,6 +58,7 @@ export function normalizePath(pathname: string): string {
 export function AppSidebar() {
   const pathname = normalizePath(usePathname());
   const { session } = useAuth();
+  const inCalc = CALC_PAGES.some((p) => p.href === pathname);
 
   return (
     <Sidebar collapsible="icon">
@@ -58,7 +81,43 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
-              {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+              {/* 計算: 2次元 / 3次元 を子に持つ折りたたみグループ */}
+              <Collapsible.Root
+                defaultOpen
+                className="group/collapsible"
+                asChild
+              >
+                <SidebarMenuItem>
+                  <Collapsible.Trigger asChild>
+                    <SidebarMenuButton
+                      tooltip="計算"
+                      isActive={inCalc}
+                      className={ITEM_CLASS}
+                    >
+                      <Sigma />
+                      <span>計算</span>
+                      <ChevronRight className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </Collapsible.Trigger>
+                  <Collapsible.Content>
+                    <SidebarMenuSub>
+                      {CALC_PAGES.map(({ href, label }) => (
+                        <SidebarMenuSubItem key={href}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={pathname === href}
+                          >
+                            <Link href={href}>
+                              <span>{label}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  </Collapsible.Content>
+                </SidebarMenuItem>
+              </Collapsible.Root>
+              {OTHER_PAGES.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton
                     asChild
