@@ -1,11 +1,11 @@
 "use client";
 
-import type { Annotations, Shape } from "plotly.js";
+import type { Annotations, PlotData, Shape } from "plotly.js";
 
 import { useMaterials } from "@/components/MaterialsProvider";
 import Plot from "@/components/Plot";
 import type { LayerDTO } from "@/lib/api/client";
-import type { Box, SectionAxis, TopShape } from "@/lib/lattice3d";
+import type { Box, SectionAxis, Solid, TopShape } from "@/lib/lattice3d";
 import type { StructureColumn } from "@/lib/stepped";
 
 // 構造の2次元断面図（横軸=位置, 縦軸=高さ）。入力の層データだけから描く（API 不要）。
@@ -263,6 +263,201 @@ export function CrossSectionView({
       config={{ displayModeBar: false, responsive: true }}
     />
   );
+}
+
+/**
+ * 3 次元構造の立体図。単位胞 1 つ分の立体を実寸比で描き、ドラッグで回せる。
+ * 各立体は頂点の凸包（alphahull 0）で面を張るので、箱は 8 頂点、球は緯線・経線の
+ * 格子点を渡すだけでよい。
+ */
+export function SolidView({
+  periodNm,
+  periodYNm,
+  solids,
+  substrate,
+}: {
+  periodNm: number;
+  periodYNm: number;
+  solids: Solid[];
+  substrate: Optical;
+}) {
+  const { materials } = useMaterials();
+  const names: MaterialNames = new Map(materials.map((m) => [m.id, m.name]));
+  const substrateKey = materialKey(substrate);
+  const ordered = [...solids].sort((a, b) => solidTop(b) - solidTop(a));
+  const colorOf = assignColors([
+    ...ordered.map(materialKey).filter((key) => key !== substrateKey),
+    substrateKey,
+  ]);
+
+  const maxTop = Math.max(0, ...solids.map(solidTop));
+  const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
+
+  // aspectmode "data" は各辺を幾何平均で正規化した箱に描くので、細長い構造ほど
+  // 箱からはみ出す。最長辺の比だけ視点を遠ざけて全体が収まるようにする。
+  const dims = [periodNm, periodYNm, subH + maxTop];
+  const far = Math.max(...dims) / Math.cbrt(dims[0] * dims[1] * dims[2]);
+  const eye = { x: 1.25 * far, y: -1.6 * far, z: 0.8 * far };
+
+  const shown = new Set<string>();
+  const legendName = (o: Optical) => `${o.name} (${formatIndex(o, names)})`;
+  const mesh = (key: string, name: string, m: Mesh): Partial<PlotData> => {
+    const first = !shown.has(key);
+    shown.add(key);
+    const { smooth, ...geometry } = m;
+    // color / flatshading / lighting は mesh3d 固有で型定義に無い
+    const trace: Mesh3DTrace = {
+      type: "mesh3d",
+      ...geometry,
+      color: colorOf.get(key) ?? "#cccccc",
+      flatshading: !smooth,
+      lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.1, roughness: 0.6 },
+      name,
+      legendgroup: key,
+      showlegend: first,
+      hoverinfo: "name",
+    };
+    return trace as Partial<PlotData>;
+  };
+
+  const data: Partial<PlotData>[] = [
+    mesh(
+      substrateKey,
+      legendName(substrate),
+      boxMesh(0, periodNm, 0, periodYNm, 0, subH),
+    ),
+    ...ordered.map((s) =>
+      mesh(
+        materialKey(s),
+        legendName(s),
+        s.kind === "box"
+          ? boxMesh(s.x0, s.x1, s.y0, s.y1, subH + s.z0, subH + s.z1)
+          : sphereMesh(s.cx, s.cy, subH + s.cz, s.radiusNm),
+      ),
+    ),
+  ];
+
+  return (
+    <Plot
+      data={data}
+      layout={{
+        autosize: true,
+        height: 400,
+        margin: { l: 0, r: 0, t: 0, b: 0 },
+        scene: {
+          aspectmode: "data",
+          camera: { eye },
+          xaxis: { title: { text: "x (nm)" }, range: [0, periodNm], nticks: 5 },
+          yaxis: {
+            title: { text: "y (nm)" },
+            range: [0, periodYNm],
+            nticks: 5,
+          },
+          zaxis: { title: { text: "高さ (nm)" }, range: [0, subH + maxTop] },
+        },
+        legend: { orientation: "h", y: 0, font: { size: 11 } },
+        showlegend: true,
+      }}
+      useResizeHandler
+      style={{ width: "100%" }}
+      config={{ displayModeBar: false, responsive: true }}
+    />
+  );
+}
+
+function solidTop(s: Solid): number {
+  return s.kind === "box" ? s.z1 : s.cz + s.radiusNm;
+}
+
+/** 頂点座標と三角形の頂点番号 (i, j, k)。 */
+type Mesh = {
+  x: number[];
+  y: number[];
+  z: number[];
+  i: Int32Array;
+  j: Int32Array;
+  k: Int32Array;
+  /** 面ごとの陰影ではなく頂点で補間する（球を滑らかに見せる）。 */
+  smooth?: boolean;
+};
+
+type Mesh3DTrace = Partial<Omit<PlotData, "i" | "j" | "k">> &
+  Mesh & {
+    color: string;
+    flatshading: boolean;
+    lighting: {
+      ambient: number;
+      diffuse: number;
+      specular: number;
+      roughness: number;
+    };
+  };
+
+function triangles(tris: number[][]): Pick<Mesh, "i" | "j" | "k"> {
+  return {
+    i: Int32Array.from(tris, (t) => t[0]),
+    j: Int32Array.from(tris, (t) => t[1]),
+    k: Int32Array.from(tris, (t) => t[2]),
+  };
+}
+
+// 頂点は下面 0-3、上面 4-7 を反時計回りに並べる
+const BOX_TRIANGLES = [
+  [0, 2, 1],
+  [0, 3, 2], // 下面
+  [4, 5, 6],
+  [4, 6, 7], // 上面
+  [0, 1, 5],
+  [0, 5, 4], // 手前 (y0)
+  [1, 2, 6],
+  [1, 6, 5], // 右 (x1)
+  [2, 3, 7],
+  [2, 7, 6], // 奥 (y1)
+  [3, 0, 4],
+  [3, 4, 7], // 左 (x0)
+];
+
+function boxMesh(
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  z0: number,
+  z1: number,
+): Mesh {
+  return {
+    x: [x0, x1, x1, x0, x0, x1, x1, x0],
+    y: [y0, y0, y1, y1, y0, y0, y1, y1],
+    z: [z0, z0, z0, z0, z1, z1, z1, z1],
+    ...triangles(BOX_TRIANGLES),
+  };
+}
+
+/** 緯線 rings 本 × 経線 segments 本の格子で球を張る。 */
+function sphereMesh(cx: number, cy: number, cz: number, r: number): Mesh {
+  const rings = 16;
+  const segments = 24;
+  const x: number[] = [];
+  const y: number[] = [];
+  const z: number[] = [];
+  for (let i = 0; i <= rings; i++) {
+    const polar = (Math.PI * i) / rings;
+    for (let j = 0; j < segments; j++) {
+      const az = (2 * Math.PI * j) / segments;
+      x.push(cx + r * Math.sin(polar) * Math.cos(az));
+      y.push(cy + r * Math.sin(polar) * Math.sin(az));
+      z.push(cz + r * Math.cos(polar));
+    }
+  }
+  const at = (i: number, j: number) => i * segments + (j % segments);
+  const tris: number[][] = [];
+  for (let i = 0; i < rings; i++) {
+    for (let j = 0; j < segments; j++) {
+      tris.push([at(i, j), at(i + 1, j), at(i + 1, j + 1)]);
+      tris.push([at(i, j), at(i + 1, j + 1), at(i, j + 1)]);
+    }
+  }
+  return { x, y, z, ...triangles(tris), smooth: true };
 }
 
 /**

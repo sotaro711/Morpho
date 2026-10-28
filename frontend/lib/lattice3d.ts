@@ -114,6 +114,20 @@ export type TopShape =
       name: string;
     };
 
+/** 立体図の立体。単位胞の左下隅を原点、基板表面を z = 0 とする nm 座標。 */
+export type Solid = (
+  | {
+      kind: "box";
+      x0: number;
+      x1: number;
+      y0: number;
+      y1: number;
+      z0: number;
+      z1: number;
+    }
+  | { kind: "sphere"; cx: number; cy: number; cz: number; radiusNm: number }
+) & { name: string } & Optics;
+
 // 入射媒質は空気に固定（stack.ts の規約と同じ。スライスの背景材料にも使う）。
 const AIR: Medium = { name: "空気", n: 1.0, k: 0 };
 
@@ -217,6 +231,21 @@ export function sphereBoxes(
     z1: s.z1,
     ...config.particle,
   }));
+}
+
+/** 立体図: 輪切りではなく本物の球として描く。 */
+export function sphereSolids(config: SphereConfig): Solid[] {
+  const r = config.diameterNm / 2;
+  return [
+    {
+      kind: "sphere",
+      cx: config.periodNm / 2,
+      cy: config.periodYNm / 2,
+      cz: r,
+      radiusNm: r,
+      ...config.particle,
+    },
+  ];
 }
 
 // ---------------- 角柱の段差 ----------------
@@ -339,4 +368,45 @@ export function pillarBoxes(
   stack(raised.prof, x0, x1);
   stack(flat.prof, x1, period);
   return boxes;
+}
+
+/**
+ * 立体図: 角柱の上に多層膜を積み、周囲の平らな多層膜は角柱を囲む 4 本の帯で表す
+ * （穴あきの板を 1 つの立体にすると描画が面倒なので分ける）。
+ */
+export function pillarSolids(
+  config: PillarConfig,
+  films: EditableLayer[],
+  substrate: Medium,
+): Solid[] {
+  const { raised, flat } = pillarColumns(config, films, substrate);
+  const { periodNm: px, periodYNm: py, widthNm: w, depthNm: d } = config;
+  const x0 = (px - w) / 2;
+  const x1 = x0 + w;
+  const y0 = (py - d) / 2;
+  const y1 = y0 + d;
+  const solids: Solid[] = [];
+  const stack = (
+    prof: Slab[],
+    rect: { x0: number; x1: number; y0: number; y1: number },
+  ) => {
+    let z = 0;
+    for (const slab of prof) {
+      solids.push({
+        kind: "box",
+        ...rect,
+        z0: z,
+        z1: z + slab.thicknessNm,
+        ...slab,
+      });
+      z += slab.thicknessNm;
+    }
+  };
+  // 周囲の帯は x 方向の 2 本を周期いっぱい、y 方向の 2 本を角柱の幅に合わせる
+  stack(flat.prof, { x0: 0, x1: px, y0: 0, y1: y0 });
+  stack(flat.prof, { x0: 0, x1: px, y0: y1, y1: py });
+  stack(flat.prof, { x0: 0, x1: x0, y0, y1 });
+  stack(flat.prof, { x0: x1, x1: px, y0, y1 });
+  stack(raised.prof, { x0, x1, y0, y1 });
+  return solids;
 }
