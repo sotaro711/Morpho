@@ -265,6 +265,9 @@ export function CrossSectionView({
   );
 }
 
+/** 上面図の縮尺の基準長 (nm)。周期がこれ以下なら同じ縮尺で描く。 */
+const TOP_VIEW_FRAME_NM = 600;
+
 /**
  * 3 次元構造の上面図（xy 面）。単位胞 1 つを軸なしで描き、周期と形の寸法を
  * 寸法線で、入射面を中央を通る線で示す（研究スライドの図に合わせた体裁）。
@@ -280,8 +283,10 @@ export function TopView({
   shapes: TopShape[];
   phiDeg?: number;
 }) {
-  // 寸法線の間隔は単位胞の大きさに比例させ、周期を変えても見た目を保つ
-  const unit = Math.max(periodNm, periodYNm) * 0.12;
+  // 縮尺は周期によらず固定する（周期が違う構造を並べても同じ nm/px で比較できる）。
+  // 基準長より大きい周期のときだけ枠を周期に合わせて広げる。
+  const frame = Math.max(TOP_VIEW_FRAME_NM, periodNm, periodYNm);
+  const unit = frame * 0.12;
   const plotShapes: Partial<Shape>[] = [
     {
       type: "rect",
@@ -477,12 +482,12 @@ export function TopView({
         margin: { l: 8, r: 8, t: 8, b: 8 },
         xaxis: {
           visible: false,
-          range: [-unit * 5, periodNm + unit * 4.5],
+          range: [-unit * 5, frame + unit * 4.5],
           fixedrange: true,
         },
         yaxis: {
           visible: false,
-          range: [-unit * 3, periodYNm + unit * 4.5],
+          range: [-unit * 3, frame + unit * 4.5],
           fixedrange: true,
           // 上面図は x, y を同じ縮尺で描く（正方形が正方形に見えるように）
           scaleanchor: "x",
