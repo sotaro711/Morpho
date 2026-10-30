@@ -28,8 +28,10 @@ import { hasDiffractionModes } from "@/lib/diffraction";
 import {
   NUM_BASIS_LIMIT_3D,
   pillarBoxes,
+  pillarSolids,
   pillarTopShapes,
   sphereBoxes,
+  sphereSolids,
   sphereTopShapes,
   toPillarSimulationRequest,
   toSphereSimulationRequest,
@@ -41,6 +43,10 @@ import {
 import type { Medium, Settings } from "@/lib/stack";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
+const SolidView = dynamic(
+  () => import("@/components/StructureView").then((m) => m.SolidView),
+  { ssr: false },
+);
 const CrossSectionView = dynamic(
   () => import("@/components/StructureView").then((m) => m.CrossSectionView),
   { ssr: false },
@@ -143,6 +149,10 @@ export default function Lattice3DPage() {
     template === "sphere"
       ? sphereBoxes(sim.sphere, axis)
       : pillarBoxes(sim.pillar, sim.pillarFilms, sim.pillarSubstrate, axis);
+  const solids =
+    template === "sphere"
+      ? sphereSolids(sim.sphere)
+      : pillarSolids(sim.pillar, sim.pillarFilms, sim.pillarSubstrate);
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-6">
@@ -277,10 +287,16 @@ export default function Lattice3DPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                構造（断面図と上面図）
+                構造（立体図・断面図・上面図）
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
+              <SolidView
+                periodNm={periodNm}
+                periodYNm={periodYNm}
+                solids={solids}
+                substrate={substrate}
+              />
               <CrossSectionView
                 periodNm={sectionPeriodNm}
                 boxes={boxes}
