@@ -1,5 +1,6 @@
 """S4Solver の分散材料対応と 2 方向周期の格子。S4 が入っていない環境（CI）ではスキップする。"""
 
+import logging
 import math
 
 import pytest
@@ -211,3 +212,60 @@ def test_orders_follow_the_incidence_plane(solver: S4Solver) -> None:
     assert by_index[(0, 0)].angle_deg == pytest.approx(10.0)
     assert by_index[(0, 0)].azimuth_deg == pytest.approx(90.0)
     assert by_index[(0, -1)].azimuth_deg == pytest.approx(-90.0)
+
+
+def test_rayleigh_retry_is_logged_and_recovers(
+    solver: S4Solver, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import s4web.infrastructure.solvers.s4_solver as module
+
+    # 最初の 1 回だけ異常値を返し、シフト後は正常に解けたことにする。
+    real = module._solve_at
+    calls: list[float] = []
+
+    def flaky(sim, top, bottom, wl_nm):
+        calls.append(wl_nm)
+        if len(calls) == 1:
+            return math.nan, 0.0, math.nan
+        return real(sim, top, bottom, wl_nm)
+
+    monkeypatch.setattr(module, "_solve_at", flaky)
+    with caplog.at_level(logging.DEBUG, logger=module.__name__):
+        spectrum = solver.solve(_patterned(SI, (520.0,)))
+
+    assert calls == [520.0, 520.11]
+    assert not math.isnan(spectrum.reflectance[0])
+    messages = [r.getMessage() for r in caplog.records]
+    assert any(m.startswith("anomalous R=nan T=0 at 520nm theta=10") for m in messages)
+    assert "recovered at 520nm (shift +0.11)" in messages
+    assert any(m.startswith("wl=520nm 1/1 theta=10 solved in ") for m in messages)
+    assert all(
+        r.levelno == logging.WARNING
+        for r in caplog.records
+        if "520nm" in r.getMessage() and "solved" not in r.getMessage()
+    )
+
+
+def test_unrecoverable_point_is_zero_filled_and_logged(
+    solver: S4Solver, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import s4web.infrastructure.solvers.s4_solver as module
+
+    monkeypatch.setattr(module, "_solve_at", lambda *_: (math.nan, 0.0, math.nan))
+    with caplog.at_level(logging.WARNING, logger=module.__name__):
+        spectrum = solver.solve(_patterned(SI, (520.0,)))
+
+    assert spectrum.reflectance == (0.0,)
+    assert "could not recover at 520nm, filling R=T=0" in [r.getMessage() for r in caplog.records]
+
+
+def test_fast_solves_are_logged_at_debug_only(
+    solver: S4Solver, caplog: pytest.LogCaptureFixture
+) -> None:
+    import s4web.infrastructure.solvers.s4_solver as module
+
+    with caplog.at_level(logging.DEBUG, logger=module.__name__):
+        solver.solve(_flat(SIO2, (500.0, 600.0)))
+    solved = [r for r in caplog.records if "solved in" in r.getMessage()]
+    assert len(solved) == 2
+    assert all(r.levelno == logging.DEBUG for r in solved)
