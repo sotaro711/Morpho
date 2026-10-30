@@ -5,7 +5,9 @@ Cloud Run ではサービスアカウントの権限で、ローカルでは FIR
 エミュレータか gcloud の Application Default Credentials で接続する。
 """
 
+import logging
 import os
+import time
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from functools import cache
@@ -16,6 +18,8 @@ from google.cloud import firestore
 from s4web.domain.entities.material import DispersionPoint, DispersiveMaterial
 from s4web.domain.entities.saved_result import ResultDraft, ResultSummary, SavedResult
 from s4web.domain.ports.result_repository import ResultRepository, ResultTooLargeError
+
+_logger = logging.getLogger(__name__)
 
 # Firestore の 1 ドキュメントの上限。
 # https://firebase.google.com/docs/firestore/quotas#collections_documents_and_fields
@@ -61,8 +65,22 @@ class FirestoreResultRepository(ResultRepository):
         data = _to_document(draft, datetime.now(UTC))
         size = document_size(ref.path, data)
         if size > MAX_DOCUMENT_BYTES:
+            _logger.warning(
+                "result too large: %d bytes (limit %d) owner=%s",
+                size,
+                MAX_DOCUMENT_BYTES,
+                owner_id[:8],
+            )
             raise ResultTooLargeError(f"{size} bytes > {MAX_DOCUMENT_BYTES} bytes")
+        started = time.perf_counter()
         ref.set(data)
+        _logger.info(
+            "saved result %s: %d bytes (%.0f%% of limit) in %.2fs",
+            ref.id,
+            size,
+            100.0 * size / MAX_DOCUMENT_BYTES,
+            time.perf_counter() - started,
+        )
         return SavedResult(id=ref.id, draft=draft, created_at=data["createdAt"])
 
     def delete(self, owner_id: str, result_id: str) -> bool:
