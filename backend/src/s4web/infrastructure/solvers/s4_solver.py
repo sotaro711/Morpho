@@ -31,7 +31,9 @@ R/T は回折 0 次（正反射・直進透過）の成分（詳細は _solve_at
 SetFrequency が層の固有モードと解を破棄するので、新しい ε で解き直される。
 """
 
+import logging
 import math
+import time
 
 import S4  # type: ignore[import-not-found]
 
@@ -57,6 +59,12 @@ _LOSS_K = 1e-4
 # Rayleigh 点で異常値が出た波長の退避シフト量（nm）。特異点は孤立点なので微小でよい。
 _WL_SHIFTS_NM = (0.11, -0.11, 0.31)
 
+_logger = logging.getLogger(__name__)
+
+# 1 波長の所要時間を INFO で出す閾値（秒）。平面多層膜は 1 波長 1 ms 程度なので
+# 全波長を出すと行数ばかり増える。基底数の多い 3 次元構造だけが自然に残る。
+_SLOW_SOLVE_SEC = 0.5
+
 
 class S4Solver(SolverPort):
     def solve(self, condition: SimulationCondition) -> Spectrum:
@@ -69,20 +77,31 @@ class S4Solver(SolverPort):
         reflectance: list[float] = []
         transmittance: list[float] = []
         reflectance_total: list[float] = []
-        for wl_nm in wls:
+        for i, wl_nm in enumerate(wls, start=1):
+            started = time.perf_counter()
             _update_materials(sim, condition, wl_nm)
             r, t, r_total = _solve_at(sim, top_name, bottom_name, wl_nm)
             if condition.is_patterned and _is_anomalous(r, t):
                 # Rayleigh 点（回折次数の出没する特異波長）では固有値計算が縮退して
                 # NaN や発散が出る。波長を微小にずらして解き直す。
+                _logger.warning(
+                    "anomalous R=%.3g T=%.3g at %gnm theta=%g, retrying with shifted wavelength",
+                    r,
+                    t,
+                    wl_nm,
+                    condition.theta_deg,
+                )
                 for shift in _WL_SHIFTS_NM:
                     _update_materials(sim, condition, wl_nm + shift)
                     r, t, r_total = _solve_at(sim, top_name, bottom_name, wl_nm + shift)
                     if not _is_anomalous(r, t):
+                        _logger.warning("recovered at %gnm (shift %+g)", wl_nm, shift)
                         break
                 else:
                     # 回復不能な点は 0 埋め（colorimetry 側の NaN→0 と同じ最終防波堤）。
+                    _logger.warning("could not recover at %gnm, filling R=T=0", wl_nm)
                     r, t, r_total = 0.0, 0.0, 0.0
+            _log_solve_time(wl_nm, i, len(wls), condition.theta_deg, started)
             reflectance.append(r)
             transmittance.append(t)
             reflectance_total.append(r_total)
@@ -105,16 +124,27 @@ class S4Solver(SolverPort):
         sin_in_xy = (sin_in * math.cos(phi), sin_in * math.sin(phi))
 
         distributions: list[AngularDistribution] = []
-        for wl_nm in condition.wavelengths_nm():
+        wls = condition.wavelengths_nm()
+        for i, wl_nm in enumerate(wls, start=1):
+            started = time.perf_counter()
             _update_materials(sim, condition, wl_nm)
             orders = _orders_at(sim, top_name, wl_nm, sin_in_xy, periods_um)
             if orders is None and condition.is_patterned:
                 # スペクトル計算と同じ Rayleigh 点対策（波長微小シフトで解き直す）。
+                _logger.warning(
+                    "anomalous orders at %gnm theta=%g, retrying with shifted wavelength",
+                    wl_nm,
+                    condition.theta_deg,
+                )
                 for shift in _WL_SHIFTS_NM:
                     _update_materials(sim, condition, wl_nm + shift)
                     orders = _orders_at(sim, top_name, wl_nm + shift, sin_in_xy, periods_um)
                     if orders is not None:
+                        _logger.warning("recovered at %gnm (shift %+g)", wl_nm, shift)
                         break
+                else:
+                    _logger.warning("could not recover at %gnm, returning no orders", wl_nm)
+            _log_solve_time(wl_nm, i, len(wls), condition.theta_deg, started)
             # 回復不能な波長は空の分布（呼び出し側は「データなし」として扱える）。
             distributions.append(AngularDistribution(wl_nm, orders or ()))
         return tuple(distributions)
@@ -135,6 +165,15 @@ class S4Solver(SolverPort):
             # 既存の計算経路を変えないよう、パターン時のみ有効化する。2 方向周期では
             # 誘電体の円領域で収束が著しく悪くなるため使わない（モジュール docstring）。
             sim.SetOptions(PolarizationDecomposition=True)
+        _logger.debug(
+            "S4.New lattice=(%g, %g)um basis=%d layers=%d regions=%d polarization_decomposition=%s",
+            period_um,
+            period_y_um,
+            condition.num_basis,
+            len(condition.layers),
+            sum(len(layer.regions) for layer in condition.layers),
+            patterned and not condition.is_biperiodic,
+        )
 
         # 各材料の比誘電率 ε を登録する（RCWA はこの ε をフーリエ空間で扱う）。
         # 層が参照する前に存在している必要があるので先に登録する。分散材料の値は
@@ -178,6 +217,15 @@ def _periods_um(condition: SimulationCondition) -> tuple[float, float]:
         return _NOMINAL_PERIOD_UM, 0.0
     period_y_um = condition.period_y_nm / _NM_PER_UM if condition.period_y_nm is not None else 0.0
     return condition.period_nm / _NM_PER_UM, period_y_um
+
+
+def _log_solve_time(wl_nm: float, index: int, count: int, theta_deg: float, started: float) -> None:
+    """1 波長の所要時間。DEBUG では毎回、INFO では遅かった波長だけ出す。"""
+    elapsed = time.perf_counter() - started
+    level = logging.INFO if elapsed >= _SLOW_SOLVE_SEC else logging.DEBUG
+    _logger.log(
+        level, "wl=%gnm %d/%d theta=%g solved in %.2fs", wl_nm, index, count, theta_deg, elapsed
+    )
 
 
 def _set_region(

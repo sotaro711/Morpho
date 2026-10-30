@@ -4,6 +4,7 @@
              export FIRESTORE_EMULATOR_HOST=localhost:8080
 """
 
+import logging
 import os
 from uuid import uuid4
 
@@ -94,3 +95,46 @@ def test_rejects_documents_over_the_limit(repository: FirestoreResultRepository)
     with pytest.raises(ResultTooLargeError):
         repository.add(owner, _draft(points=MAX_DOCUMENT_BYTES // 8))
     assert repository.list_for(owner, 10) == ()
+
+
+class _FakeRef:
+    def __init__(self) -> None:
+        self.id = "r1"
+        self.path = "users/u/results/r1"
+        self.data: dict | None = None
+
+    def set(self, data: dict) -> None:
+        self.data = data
+
+
+class _FakeDb:
+    """エミュレータなしで add() のログを確かめるための最小限の Client。"""
+
+    def __init__(self) -> None:
+        self.ref = _FakeRef()
+
+    def collection(self, *_: str):
+        return self
+
+    def document(self) -> _FakeRef:
+        return self.ref
+
+
+def test_add_logs_size_and_duration(caplog: pytest.LogCaptureFixture) -> None:
+    db = _FakeDb()
+    with caplog.at_level(logging.INFO):
+        saved = FirestoreResultRepository(db).add("user-1", _draft())  # type: ignore[arg-type]
+    assert saved.id == "r1" and db.ref.data is not None
+    messages = [r.getMessage() for r in caplog.records]
+    assert len(messages) == 1
+    assert messages[0].startswith("saved result r1: ")
+    assert "bytes (0% of limit) in " in messages[0]
+
+
+def test_too_large_result_is_logged_as_warning(caplog: pytest.LogCaptureFixture) -> None:
+    db = _FakeDb()
+    with caplog.at_level(logging.WARNING), pytest.raises(ResultTooLargeError):
+        FirestoreResultRepository(db).add("user-1", _draft(points=200_000))  # type: ignore[arg-type]
+    assert db.ref.data is None
+    assert caplog.records[0].getMessage().startswith("result too large: ")
+    assert caplog.records[0].getMessage().endswith("owner=user-1")

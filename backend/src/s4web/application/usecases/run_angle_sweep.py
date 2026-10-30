@@ -1,5 +1,7 @@
 """入射角スイープユースケース。"""
 
+import logging
+import time
 from dataclasses import replace
 
 from s4web.domain.entities.simulation import (
@@ -9,6 +11,8 @@ from s4web.domain.entities.simulation import (
 )
 from s4web.domain.ports.colorimetry_port import ColorimetryPort
 from s4web.domain.ports.solver_port import SolverPort
+
+_logger = logging.getLogger(__name__)
 
 
 class RunAngleSweepUseCase:
@@ -30,10 +34,21 @@ class RunAngleSweepUseCase:
         include_colors: bool,
     ) -> tuple[AngleSweepEntry, ...]:
         entries: list[AngleSweepEntry] = []
-        for theta in theta_degs:
+        started = time.perf_counter()
+        for i, theta in enumerate(theta_degs, start=1):
             # frozen な条件は replace で角度だけ差し替える(検証も再実行される)。
             cond = replace(condition, theta_deg=theta)
+            angle_started = time.perf_counter()
             spectrum = self._solver.solve(cond)
+            now = time.perf_counter()
+            _logger.info(
+                "sweep theta=%g done %d/%d in %.1fs (total %.1fs)",
+                theta,
+                i,
+                len(theta_degs),
+                now - angle_started,
+                now - started,
+            )
             if not include_colors:
                 entries.append(
                     AngleSweepEntry(theta_deg=theta, spectrum=spectrum, reflected_color=None)

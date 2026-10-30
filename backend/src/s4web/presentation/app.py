@@ -23,6 +23,7 @@ from s4web.presentation.api.me_router import router as me_router
 from s4web.presentation.api.results_router import router as results_router
 from s4web.presentation.api.simulation_router import router as simulation_router
 from s4web.presentation.auth import current_user, ensure_configured
+from s4web.presentation.logging_setup import RequestLogMiddleware, configure_logging
 
 # 開発時だけ backend/.env を読む。探索に任せると起動方法で起点が変わるため、パスを明示する。
 # ファイルがなければ何もせず、既に設定済みの環境変数（Cloud Run など）も上書きしない。
@@ -44,7 +45,9 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    configure_logging()
     app = FastAPI(title="S4 RCWA Simulator API", version="0.1.0", lifespan=_lifespan)
+    app.add_middleware(RequestLogMiddleware)
 
     # 開発時の保険。本番は Next.js の rewrites でプロキシし CORS 不要にする想定。
     app.add_middleware(
