@@ -57,11 +57,6 @@ export function LayerEditor({ layers, onChange }: Props) {
       </div>
 
       <div className="grid max-h-[55vh] gap-3 overflow-y-auto pr-1">
-        {layers.length === 0 && (
-          <p className="text-xs text-muted-foreground">
-            多層膜なし（入射媒質と基板の界面のみ）。上のボタンから層を追加できます。
-          </p>
-        )}
         {layers.map((layer, i) => (
           <div key={layer.id} className="rounded-lg border p-3">
           <div className="mb-2 flex items-center justify-between">
