@@ -248,11 +248,16 @@ export function CrossSectionView({
           },
           range: [0, periodNm],
           zeroline: false,
+          constrain: "domain",
         },
         yaxis: {
           title: { text: "高さ (nm)" },
           range: [0, subH + maxTop * 1.05],
           zeroline: false,
+          // 球が球に見えるよう x と同じ縮尺で描く。範囲は変えず描画領域を縮める
+          scaleanchor: "x",
+          scaleratio: 1,
+          constrain: "domain",
         },
         shapes,
         annotations,
