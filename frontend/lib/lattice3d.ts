@@ -3,6 +3,7 @@
  *
  * 2 つのテンプレートを持つ:
  *   - 球の配列: 正方格子の各点に球が 1 つ基板の上に載る（Mie 共鳴の構造色）
+ *     球を樹脂で埋めることもできる（球の隙間と、球の上の一定の厚さ）
  *   - 角柱の段差: 正方格子の各点に角柱（基板上げ）があり、その上に多層膜が成膜される
  *     （stepped.ts の段差を x, y 両方向に有限な矩形にしたもの）
  *
@@ -48,6 +49,15 @@ export type SphereConfig = {
   slices: number;
   numBasis: number;
   particle: Medium;
+  resin: ResinConfig;
+};
+
+/** 球を埋める樹脂。上面は平らで、その上（入射側）は空気。 */
+export type ResinConfig = {
+  enabled: boolean;
+  medium: Medium;
+  /** 球の頂点から樹脂の上面までの厚さ。 */
+  topNm: number;
 };
 
 // 研究スライド「Si 粒子単層配置（Mie 共鳴）による青色発色」の構造。
@@ -58,6 +68,7 @@ export const DEFAULT_SPHERE: SphereConfig = {
   slices: 8,
   numBasis: DEFAULT_NUM_BASIS_3D,
   particle: { name: "Si", n: 4.0, k: 0.072 },
+  resin: { enabled: false, medium: { name: "樹脂", n: 1.5, k: 0 }, topNm: 120 },
 };
 
 export type PillarConfig = {
@@ -176,14 +187,24 @@ export function toSphereSimulationRequest(
   config: SphereConfig,
   substrate: Medium,
 ): SimulationRequest {
-  const { periodNm, periodYNm, particle } = config;
+  const { periodNm, periodYNm, particle, resin } = config;
+  const surrounding = resin.enabled ? resin.medium : AIR;
   const layers: LayerDTO[] = [
     airLayer(),
+    ...(resin.enabled && resin.topNm > 0
+      ? [
+          {
+            name: resin.medium.name,
+            thicknessNm: resin.topNm,
+            ...apiOptics(resin.medium),
+            regions: [],
+          },
+        ]
+      : []),
     ...sphereSlices(config).map((s, i) => ({
       name: `slice${i}`,
       thicknessNm: s.z1 - s.z0,
-      n: AIR.n,
-      k: AIR.k,
+      ...apiOptics(surrounding),
       regions: [
         {
           shape: "circle" as const,
