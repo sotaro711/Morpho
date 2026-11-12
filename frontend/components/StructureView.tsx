@@ -304,7 +304,12 @@ export function SolidView({
 
   const shown = new Set<string>();
   const legendName = (o: Optical) => `${o.name} (${formatIndex(o, names)})`;
-  const mesh = (key: string, name: string, m: Mesh): Partial<PlotData> => {
+  const mesh = (
+    key: string,
+    name: string,
+    m: Mesh,
+    translucent = false,
+  ): Partial<PlotData> => {
     const first = !shown.has(key);
     shown.add(key);
     const { smooth, ...geometry } = m;
@@ -313,6 +318,7 @@ export function SolidView({
       type: "mesh3d",
       ...geometry,
       color: colorOf.get(key) ?? "#cccccc",
+      opacity: translucent ? 0.3 : 1,
       flatshading: !smooth,
       lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.1, roughness: 0.6 },
       name,
@@ -336,6 +342,7 @@ export function SolidView({
         s.kind === "box"
           ? boxMesh(s.x0, s.x1, s.y0, s.y1, subH + s.z0, subH + s.z1)
           : sphereMesh(s.cx, s.cy, subH + s.cz, s.radiusNm),
+        s.translucent,
       ),
     ),
   ];

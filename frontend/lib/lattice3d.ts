@@ -137,7 +137,11 @@ export type Solid = (
       z1: number;
     }
   | { kind: "sphere"; cx: number; cy: number; cz: number; radiusNm: number }
-) & { name: string } & Optics;
+) & {
+  name: string;
+  /** 中の立体が透けて見えるように描く（球を埋める樹脂）。 */
+  translucent?: boolean;
+} & Optics;
 
 // 入射媒質は空気に固定（stack.ts の規約と同じ。スライスの背景材料にも使う）。
 const AIR: Medium = { name: "空気", n: 1.0, k: 0 };
@@ -273,6 +277,7 @@ export function sphereBoxes(
 /** 立体図: 輪切りではなく本物の球として描く。 */
 export function sphereSolids(config: SphereConfig): Solid[] {
   const r = config.diameterNm / 2;
+  const { resin } = config;
   return [
     {
       kind: "sphere",
@@ -282,6 +287,21 @@ export function sphereSolids(config: SphereConfig): Solid[] {
       radiusNm: r,
       ...config.particle,
     },
+    ...(resin.enabled
+      ? [
+          {
+            kind: "box" as const,
+            x0: 0,
+            x1: config.periodNm,
+            y0: 0,
+            y1: config.periodYNm,
+            z0: 0,
+            z1: config.diameterNm + resin.topNm,
+            translucent: true,
+            ...resin.medium,
+          },
+        ]
+      : []),
   ];
 }
 
