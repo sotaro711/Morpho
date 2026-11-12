@@ -244,14 +244,30 @@ export function sphereBoxes(
   config: SphereConfig,
   axis: SectionAxis = "x",
 ): Box[] {
-  const cx = (axis === "x" ? config.periodNm : config.periodYNm) / 2;
-  return sphereSlices(config).map((s) => ({
-    x0: cx - s.radiusNm,
-    x1: cx + s.radiusNm,
-    z0: s.z0,
-    z1: s.z1,
-    ...config.particle,
-  }));
+  const period = axis === "x" ? config.periodNm : config.periodYNm;
+  const cx = period / 2;
+  const { resin } = config;
+  return [
+    // 樹脂は球の後ろに敷く（箱は並び順に重ねて描かれる）
+    ...(resin.enabled
+      ? [
+          {
+            x0: 0,
+            x1: period,
+            z0: 0,
+            z1: config.diameterNm + resin.topNm,
+            ...resin.medium,
+          },
+        ]
+      : []),
+    ...sphereSlices(config).map((s) => ({
+      x0: cx - s.radiusNm,
+      x1: cx + s.radiusNm,
+      z0: s.z0,
+      z1: s.z1,
+      ...config.particle,
+    })),
+  ];
 }
 
 /** 立体図: 輪切りではなく本物の球として描く。 */
