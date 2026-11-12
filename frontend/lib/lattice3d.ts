@@ -209,15 +209,18 @@ export function toSphereSimulationRequest(
       name: `slice${i}`,
       thicknessNm: s.z1 - s.z0,
       ...apiOptics(surrounding),
-      regions: [
-        {
-          shape: "circle" as const,
-          cxNm: periodNm / 2,
-          cyNm: periodYNm / 2,
-          radiusNm: s.radiusNm,
-          ...apiOptics(particle),
-        },
-      ],
+      // 周囲と同じ材料の円は置かない（コントラスト 0 の領域があると S4 の解が壊れる）
+      regions: sameOptics(particle, surrounding)
+        ? []
+        : [
+            {
+              shape: "circle" as const,
+              cxNm: periodNm / 2,
+              cyNm: periodYNm / 2,
+              radiusNm: s.radiusNm,
+              ...apiOptics(particle),
+            },
+          ],
     })),
     substrateLayer(substrate),
   ];
