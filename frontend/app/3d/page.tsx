@@ -408,6 +408,7 @@ function SphereForm({
   onChange: (v: SphereConfig) => void;
 }) {
   const patch = (p: Partial<SphereConfig>) => onChange({ ...value, ...p });
+  const { resin } = value;
   return (
     <div className="grid grid-cols-2 gap-2">
       <Field label="周期 x (nm)">
@@ -455,6 +456,43 @@ function SphereForm({
           value={value.particle}
           onChange={(particle) => patch({ particle })}
         />
+      </div>
+      <div className="col-span-full grid gap-2 border-t pt-2">
+        <label className="flex items-center gap-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            className="size-4 accent-primary"
+            checked={resin.enabled}
+            onChange={(e) =>
+              patch({
+                resin: e.target.checked
+                  ? { ...resin, enabled: true, topNm: value.diameterNm }
+                  : { ...resin, enabled: false },
+              })
+            }
+          />
+          樹脂で埋める
+        </label>
+        {resin.enabled && (
+          <>
+            <MediumFields
+              value={resin.medium}
+              onChange={(medium) => patch({ resin: { ...resin, medium } })}
+            />
+            <div title="球の頂点から樹脂の上面までの厚さ。樹脂の上面は平らで、その上は空気">
+              <Field label="球の上の厚さ (nm)">
+                <NumberInput
+                  step={10}
+                  min={0}
+                  value={resin.topNm}
+                  onChange={(topNm) =>
+                    patch({ resin: { ...resin, topNm: Math.max(0, topNm) } })
+                  }
+                />
+              </Field>
+            </div>
+          </>
+        )}
       </div>
       {value.diameterNm > Math.min(value.periodNm, value.periodYNm) && (
         <p className="col-span-full text-xs text-destructive">

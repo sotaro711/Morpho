@@ -3,6 +3,7 @@
  *
  * 2 つのテンプレートを持つ:
  *   - 球の配列: 正方格子の各点に球が 1 つ基板の上に載る（Mie 共鳴の構造色）
+ *     球を樹脂で埋めることもできる（球の隙間と、球の上の一定の厚さ）
  *   - 角柱の段差: 正方格子の各点に角柱（基板上げ）があり、その上に多層膜が成膜される
  *     （stepped.ts の段差を x, y 両方向に有限な矩形にしたもの）
  *
@@ -48,6 +49,15 @@ export type SphereConfig = {
   slices: number;
   numBasis: number;
   particle: Medium;
+  resin: ResinConfig;
+};
+
+/** 球を埋める樹脂。上面は平らで、その上（入射側）は空気。 */
+export type ResinConfig = {
+  enabled: boolean;
+  medium: Medium;
+  /** 球の頂点から樹脂の上面までの厚さ。 */
+  topNm: number;
 };
 
 // 研究スライド「Si 粒子単層配置（Mie 共鳴）による青色発色」の構造。
@@ -58,6 +68,7 @@ export const DEFAULT_SPHERE: SphereConfig = {
   slices: 8,
   numBasis: DEFAULT_NUM_BASIS_3D,
   particle: { name: "Si", n: 4.0, k: 0.072 },
+  resin: { enabled: false, medium: { name: "樹脂", n: 1.5, k: 0 }, topNm: 120 },
 };
 
 export type PillarConfig = {
@@ -126,7 +137,11 @@ export type Solid = (
       z1: number;
     }
   | { kind: "sphere"; cx: number; cy: number; cz: number; radiusNm: number }
-) & { name: string } & Optics;
+) & {
+  name: string;
+  /** 中の立体が透けて見えるように描く（球を埋める樹脂）。 */
+  translucent?: boolean;
+} & Optics;
 
 // 入射媒質は空気に固定（stack.ts の規約と同じ。スライスの背景材料にも使う）。
 const AIR: Medium = { name: "空気", n: 1.0, k: 0 };
@@ -176,23 +191,36 @@ export function toSphereSimulationRequest(
   config: SphereConfig,
   substrate: Medium,
 ): SimulationRequest {
-  const { periodNm, periodYNm, particle } = config;
+  const { periodNm, periodYNm, particle, resin } = config;
+  const surrounding = resin.enabled ? resin.medium : AIR;
   const layers: LayerDTO[] = [
     airLayer(),
+    ...(resin.enabled && resin.topNm > 0
+      ? [
+          {
+            name: resin.medium.name,
+            thicknessNm: resin.topNm,
+            ...apiOptics(resin.medium),
+            regions: [],
+          },
+        ]
+      : []),
     ...sphereSlices(config).map((s, i) => ({
       name: `slice${i}`,
       thicknessNm: s.z1 - s.z0,
-      n: AIR.n,
-      k: AIR.k,
-      regions: [
-        {
-          shape: "circle" as const,
-          cxNm: periodNm / 2,
-          cyNm: periodYNm / 2,
-          radiusNm: s.radiusNm,
-          ...apiOptics(particle),
-        },
-      ],
+      ...apiOptics(surrounding),
+      // 周囲と同じ材料の円は置かない（コントラスト 0 の領域があると S4 の解が壊れる）
+      regions: sameOptics(particle, surrounding)
+        ? []
+        : [
+            {
+              shape: "circle" as const,
+              cxNm: periodNm / 2,
+              cyNm: periodYNm / 2,
+              radiusNm: s.radiusNm,
+              ...apiOptics(particle),
+            },
+          ],
     })),
     substrateLayer(substrate),
   ];
@@ -223,19 +251,36 @@ export function sphereBoxes(
   config: SphereConfig,
   axis: SectionAxis = "x",
 ): Box[] {
-  const cx = (axis === "x" ? config.periodNm : config.periodYNm) / 2;
-  return sphereSlices(config).map((s) => ({
-    x0: cx - s.radiusNm,
-    x1: cx + s.radiusNm,
-    z0: s.z0,
-    z1: s.z1,
-    ...config.particle,
-  }));
+  const period = axis === "x" ? config.periodNm : config.periodYNm;
+  const cx = period / 2;
+  const { resin } = config;
+  return [
+    // 樹脂は球の後ろに敷く（箱は並び順に重ねて描かれる）
+    ...(resin.enabled
+      ? [
+          {
+            x0: 0,
+            x1: period,
+            z0: 0,
+            z1: config.diameterNm + resin.topNm,
+            ...resin.medium,
+          },
+        ]
+      : []),
+    ...sphereSlices(config).map((s) => ({
+      x0: cx - s.radiusNm,
+      x1: cx + s.radiusNm,
+      z0: s.z0,
+      z1: s.z1,
+      ...config.particle,
+    })),
+  ];
 }
 
 /** 立体図: 輪切りではなく本物の球として描く。 */
 export function sphereSolids(config: SphereConfig): Solid[] {
   const r = config.diameterNm / 2;
+  const { resin } = config;
   return [
     {
       kind: "sphere",
@@ -245,6 +290,21 @@ export function sphereSolids(config: SphereConfig): Solid[] {
       radiusNm: r,
       ...config.particle,
     },
+    ...(resin.enabled
+      ? [
+          {
+            kind: "box" as const,
+            x0: 0,
+            x1: config.periodNm,
+            y0: 0,
+            y1: config.periodYNm,
+            z0: 0,
+            z1: config.diameterNm + resin.topNm,
+            translucent: true,
+            ...resin.medium,
+          },
+        ]
+      : []),
   ];
 }
 

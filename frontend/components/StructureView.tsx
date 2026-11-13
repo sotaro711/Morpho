@@ -210,17 +210,29 @@ export function CrossSectionView({
   const maxTop = Math.max(0, ...boxes.map((b) => b.z1));
   const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
 
+  // 基板と同じ材料で基板の上に全幅で載る箱（球を埋める樹脂）は、界面が無いので
+  // 基板とつなげて 1 つの矩形にする。
+  const joinsSubstrate = (b: Box) =>
+    materialKey(b) === substrateKey &&
+    b.z0 === 0 &&
+    b.x0 <= 0 &&
+    b.x1 >= periodNm;
+  const substrateTop =
+    subH + Math.max(0, ...boxes.filter(joinsSubstrate).map((b) => b.z1));
+
   const shapes: Partial<Shape>[] = [
-    rect(0, 0, periodNm, subH, colorOf.get(substrateKey)!),
-    ...boxes.map((b) =>
-      rect(
-        b.x0,
-        subH + b.z0,
-        b.x1,
-        subH + b.z1,
-        colorOf.get(materialKey(b)) ?? "#cccccc",
+    rect(0, 0, periodNm, substrateTop, colorOf.get(substrateKey)!),
+    ...boxes
+      .filter((b) => !joinsSubstrate(b))
+      .map((b) =>
+        rect(
+          b.x0,
+          subH + b.z0,
+          b.x1,
+          subH + b.z1,
+          colorOf.get(materialKey(b)) ?? "#cccccc",
+        ),
       ),
-    ),
   ];
   const annotations: Partial<Annotations>[] = [
     {
@@ -248,11 +260,16 @@ export function CrossSectionView({
           },
           range: [0, periodNm],
           zeroline: false,
+          constrain: "domain",
         },
         yaxis: {
           title: { text: "高さ (nm)" },
           range: [0, subH + maxTop * 1.05],
           zeroline: false,
+          // 球が球に見えるよう x と同じ縮尺で描く。範囲は変えず描画領域を縮める
+          scaleanchor: "x",
+          scaleratio: 1,
+          constrain: "domain",
         },
         shapes,
         annotations,
@@ -304,7 +321,12 @@ export function SolidView({
 
   const shown = new Set<string>();
   const legendName = (o: Optical) => `${o.name} (${formatIndex(o, names)})`;
-  const mesh = (key: string, name: string, m: Mesh): Partial<PlotData> => {
+  const mesh = (
+    key: string,
+    name: string,
+    m: Mesh,
+    translucent = false,
+  ): Partial<PlotData> => {
     const first = !shown.has(key);
     shown.add(key);
     const { smooth, ...geometry } = m;
@@ -313,6 +335,7 @@ export function SolidView({
       type: "mesh3d",
       ...geometry,
       color: colorOf.get(key) ?? "#cccccc",
+      opacity: translucent ? 0.3 : 1,
       flatshading: !smooth,
       lighting: { ambient: 0.6, diffuse: 0.8, specular: 0.1, roughness: 0.6 },
       name,
@@ -323,21 +346,38 @@ export function SolidView({
     return trace as Partial<PlotData>;
   };
 
+  // 基板と同じ材料で基板の上に単位胞いっぱいに載る半透明の箱（球を埋める樹脂）は、
+  // 界面が無いので基板とつなげて 1 つの半透明の箱にする。
+  const joinsSubstrate = (s: Solid) =>
+    s.kind === "box" &&
+    !!s.translucent &&
+    materialKey(s) === substrateKey &&
+    s.z0 === 0 &&
+    s.x0 <= 0 &&
+    s.x1 >= periodNm &&
+    s.y0 <= 0 &&
+    s.y1 >= periodYNm;
+  const joined = ordered.filter(joinsSubstrate);
+  const substrateTop = subH + Math.max(0, ...joined.map(solidTop));
   const data: Partial<PlotData>[] = [
     mesh(
       substrateKey,
       legendName(substrate),
-      boxMesh(0, periodNm, 0, periodYNm, 0, subH),
+      boxMesh(0, periodNm, 0, periodYNm, 0, substrateTop),
+      joined.length > 0,
     ),
-    ...ordered.map((s) =>
-      mesh(
-        materialKey(s),
-        legendName(s),
-        s.kind === "box"
-          ? boxMesh(s.x0, s.x1, s.y0, s.y1, subH + s.z0, subH + s.z1)
-          : sphereMesh(s.cx, s.cy, subH + s.cz, s.radiusNm),
+    ...ordered
+      .filter((s) => !joinsSubstrate(s))
+      .map((s) =>
+        mesh(
+          materialKey(s),
+          legendName(s),
+          s.kind === "box"
+            ? boxMesh(s.x0, s.x1, s.y0, s.y1, subH + s.z0, subH + s.z1)
+            : sphereMesh(s.cx, s.cy, subH + s.cz, s.radiusNm),
+          s.translucent,
+        ),
       ),
-    ),
   ];
 
   return (
