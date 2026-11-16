@@ -434,10 +434,12 @@ export function SolidView({
   const eye = { x: 0.95, y: -1.2, z: 0.6 };
 
   // 等縮尺なので目盛りの刻みも 3 軸でそろえる（高さだけ細かいと詰まって読めない）
-  const dtick = tickStep(Math.max(spanX, spanY));
-  // 枠の余白には目盛りを振らない
+  // 高さも含めて決める（入力途中の極小の周期で高さの目盛りが増えすぎないように）
+  const dtick = tickStep(Math.max(spanX, spanY, subH + maxTop));
+  // 枠の余白には目盛りを振らない。構造が枠の中央にあると x と y の 0 が離れた位置に
+  // 2 つ出るので、0 は高さの軸だけに振る
   const ticks = (span: number) =>
-    Array.from({ length: Math.floor(span / dtick) + 1 }, (_, i) => i * dtick);
+    Array.from({ length: Math.floor(span / dtick) }, (_, i) => (i + 1) * dtick);
 
   const shown = new Set<string>();
   const legendName = (o: Optical) => `${o.name} (${formatIndex(o, names)})`;
