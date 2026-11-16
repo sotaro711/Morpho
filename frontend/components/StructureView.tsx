@@ -191,11 +191,17 @@ export function CrossSectionView({
   boxes,
   substrate,
   axis = "x",
+  repeat = 1,
+  extent,
 }: {
   periodNm: number;
   boxes: Box[];
   substrate: Optical;
   axis?: SectionAxis;
+  /** 横に並べる周期の数。 */
+  repeat?: number;
+  /** 形が横軸上で占める範囲 (nm)。並べたときに隣との隙間の寸法を出すのに使う。 */
+  extent?: [number, number] | null;
 }) {
   const { materials } = useMaterials();
   const names: MaterialNames = new Map(materials.map((m) => [m.id, m.name]));
@@ -220,29 +226,63 @@ export function CrossSectionView({
   const substrateTop =
     subH + Math.max(0, ...boxes.filter(joinsSubstrate).map((b) => b.z1));
 
+  // 全幅の箱は周期の境目に線が入らないよう 1 つに伸ばし、それ以外は周期ごとに並べる。
+  const span = periodNm * repeat;
+  const cells = Array.from({ length: repeat }, (_, i) => i * periodNm);
   const shapes: Partial<Shape>[] = [
-    rect(0, 0, periodNm, substrateTop, colorOf.get(substrateKey)!),
+    rect(0, 0, span, substrateTop, colorOf.get(substrateKey)!),
     ...boxes
       .filter((b) => !joinsSubstrate(b))
-      .map((b) =>
-        rect(
-          b.x0,
-          subH + b.z0,
-          b.x1,
-          subH + b.z1,
-          colorOf.get(materialKey(b)) ?? "#cccccc",
-        ),
-      ),
+      .flatMap((b) => {
+        const color = colorOf.get(materialKey(b)) ?? "#cccccc";
+        return b.x0 <= 0 && b.x1 >= periodNm
+          ? [rect(0, subH + b.z0, span, subH + b.z1, color)]
+          : cells.map((dx) =>
+              rect(b.x0 + dx, subH + b.z0, b.x1 + dx, subH + b.z1, color),
+            );
+      }),
   ];
   const annotations: Partial<Annotations>[] = [
     {
-      x: periodNm / 2,
+      x: span / 2,
       y: subH / 2,
       text: `${substrate.name} (${formatIndex(substrate, names)})`,
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     },
   ];
+
+  for (const x of cells.slice(1)) {
+    shapes.push({
+      type: "line",
+      x0: x,
+      y0: 0,
+      x1: x,
+      y1: subH + maxTop * 1.05,
+      line: CELL_LINE,
+    });
+  }
+
+  // 隣との隙間: 中央の形とその右隣の間を、構造の上に寸法線で示す。
+  const gapNm = extent ? periodNm - (extent[1] - extent[0]) : 0;
+  const showGap = repeat > 1 && extent != null && gapNm > 0;
+  if (showGap) {
+    const mid = Math.floor((repeat - 1) / 2) * periodNm;
+    const x0 = extent[1] + mid;
+    const x1 = extent[0] + mid + periodNm;
+    const yDim = subH + maxTop * 1.1;
+    for (const x of [x0, x1]) {
+      shapes.push({
+        type: "line",
+        x0: x,
+        y0: subH,
+        x1: x,
+        y1: yDim + maxTop * 0.03,
+        line: { color: "#999999", width: 0.5 },
+      });
+    }
+    annotations.push(...dimensionLine(x0, yDim, x1, yDim, formatNm(gapNm)));
+  }
 
   return (
     <Plot
@@ -258,13 +298,13 @@ export function CrossSectionView({
                 ? "x (nm) — 入射面 xz での断面"
                 : "y (nm) — 入射面 yz での断面",
           },
-          range: [0, periodNm],
+          range: [0, span],
           zeroline: false,
           constrain: "domain",
         },
         yaxis: {
           title: { text: "高さ (nm)" },
-          range: [0, subH + maxTop * 1.05],
+          range: [0, subH + maxTop * (showGap ? 1.25 : 1.05)],
           zeroline: false,
           // 球が球に見えるよう x と同じ縮尺で描く。範囲は変えず描画領域を縮める
           scaleanchor: "x",
@@ -282,11 +322,70 @@ export function CrossSectionView({
   );
 }
 
+// 寸法線（JIS Z 8317 に倣う）: 両端矢印、数値は水平なら線の上、垂直なら線の左に
+// 下から上へ読む向きで置く。単位は図の隅か軸に示すので数値のみ。
+function dimensionLine(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  label: string,
+): Partial<Annotations>[] {
+  const horizontal = y0 === y1;
+  return [
+    {
+      x: x1,
+      y: y1,
+      ax: x0,
+      ay: y0,
+      axref: "x",
+      ayref: "y",
+      xref: "x",
+      yref: "y",
+      text: "",
+      showarrow: true,
+      // plotly は "end+start" を受けるが型定義に無い
+      arrowside: "end+start" as Annotations["arrowside"],
+      arrowhead: 2,
+      arrowsize: 0.8,
+      arrowwidth: 1,
+      arrowcolor: "#333333",
+    },
+    {
+      x: (x0 + x1) / 2,
+      y: (y0 + y1) / 2,
+      text: label,
+      showarrow: false,
+      font: { size: 11, color: "#333333" },
+      xanchor: horizontal ? "center" : "right",
+      yanchor: horizontal ? "bottom" : "middle",
+      xshift: horizontal ? 0 : -3,
+      yshift: horizontal ? 2 : 0,
+      textangle: horizontal ? "0" : "-90",
+    },
+  ];
+}
+
+// 浮動小数の端数（0.1 + 0.2 の類）を寸法に出さない
+function formatNm(v: number): string {
+  return `${Number(v.toFixed(1))}`;
+}
+
+// 周期を並べたときの単位胞の境目。構造の邪魔にならない薄い点線にする。
+const CELL_LINE = {
+  color: "rgba(0, 0, 0, 0.35)",
+  width: 1,
+  dash: "dot",
+} as const;
+
+/** 立体図の縮尺の基準長 (nm)。1 周期がこれ以下なら同じ縮尺で描く。 */
+const SOLID_VIEW_CELL_NM = 450;
+
 /** 上面図の縮尺の基準長 (nm)。周期がこれ以下なら同じ縮尺で描く。 */
 const TOP_VIEW_FRAME_NM = 600;
 
 /**
- * 3 次元構造の立体図。単位胞 1 つ分の立体を実寸比で描き、ドラッグで回せる。
+ * 3 次元構造の立体図。単位胞を repeat × repeat 個並べて実寸比で描き、ドラッグで回せる。
  * 各立体は頂点の凸包（alphahull 0）で面を張るので、箱は 8 頂点、球は緯線・経線の
  * 格子点を渡すだけでよい。
  */
@@ -295,11 +394,14 @@ export function SolidView({
   periodYNm,
   solids,
   substrate,
+  repeat = 1,
 }: {
   periodNm: number;
   periodYNm: number;
   solids: Solid[];
   substrate: Optical;
+  /** x, y それぞれに並べる周期の数。 */
+  repeat?: number;
 }) {
   const { materials } = useMaterials();
   const names: MaterialNames = new Map(materials.map((m) => [m.id, m.name]));
@@ -313,11 +415,29 @@ export function SolidView({
   const maxTop = Math.max(0, ...solids.map(solidTop));
   const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
 
-  // aspectmode "data" は各辺を幾何平均で正規化した箱に描くので、細長い構造ほど
-  // 箱からはみ出す。最長辺の比だけ視点を遠ざけて全体が収まるようにする。
-  const dims = [periodNm, periodYNm, subH + maxTop];
-  const far = Math.max(...dims) / Math.cbrt(dims[0] * dims[1] * dims[2]);
-  const eye = { x: 1.25 * far, y: -1.6 * far, z: 0.8 * far };
+  const spanX = periodNm * repeat;
+  const spanY = periodYNm * repeat;
+  // 縮尺は周期によらず固定する（周期を変えた図を並べたとき、粒子の大きさが同じで
+  // 周期だけが変わって見える）。基準より大きい周期のときだけ枠を広げる。
+  const frame = Math.max(SOLID_VIEW_CELL_NM * repeat, spanX, spanY);
+  const padX = (frame - spanX) / 2;
+  const padY = (frame - spanY) / 2;
+  const dims = [frame, frame, subH + maxTop];
+  // 軸の範囲どおりの実寸比で描く。aspectmode "data" は範囲ではなくデータの広がりで
+  // 比を決めるので、余白を取ると歪む。最長辺を 1 にそろえて視点は固定する。
+  const longest = Math.max(...dims);
+  const aspectratio = {
+    x: dims[0] / longest,
+    y: dims[1] / longest,
+    z: dims[2] / longest,
+  };
+  const eye = { x: 0.95, y: -1.2, z: 0.6 };
+
+  // 等縮尺なので目盛りの刻みも 3 軸でそろえる（高さだけ細かいと詰まって読めない）
+  const dtick = tickStep(Math.max(spanX, spanY));
+  // 枠の余白には目盛りを振らない
+  const ticks = (span: number) =>
+    Array.from({ length: Math.floor(span / dtick) + 1 }, (_, i) => i * dtick);
 
   const shown = new Set<string>();
   const legendName = (o: Optical) => `${o.name} (${formatIndex(o, names)})`;
@@ -346,39 +466,79 @@ export function SolidView({
     return trace as Partial<PlotData>;
   };
 
-  // 基板と同じ材料で基板の上に単位胞いっぱいに載る半透明の箱（球を埋める樹脂）は、
-  // 界面が無いので基板とつなげて 1 つの半透明の箱にする。
-  const joinsSubstrate = (s: Solid) =>
+  const fillsCell = (s: Solid) =>
     s.kind === "box" &&
-    !!s.translucent &&
-    materialKey(s) === substrateKey &&
-    s.z0 === 0 &&
     s.x0 <= 0 &&
     s.x1 >= periodNm &&
     s.y0 <= 0 &&
     s.y1 >= periodYNm;
+  // 基板と同じ材料で基板の上に単位胞いっぱいに載る半透明の箱（球を埋める樹脂）は、
+  // 界面が無いので基板とつなげて 1 つの半透明の箱にする。
+  const joinsSubstrate = (s: Solid) =>
+    fillsCell(s) &&
+    !!s.translucent &&
+    materialKey(s) === substrateKey &&
+    s.kind === "box" &&
+    s.z0 === 0;
   const joined = ordered.filter(joinsSubstrate);
   const substrateTop = subH + Math.max(0, ...joined.map(solidTop));
+  const cells = Array.from({ length: repeat * repeat }, (_, i) => ({
+    dx: (i % repeat) * periodNm,
+    dy: Math.floor(i / repeat) * periodYNm,
+  }));
+  // 単位胞いっぱいの箱は周期の境目に面が入らないよう 1 つに伸ばし、それ以外は周期ごとに並べる。
+  const meshesOf = (s: Solid): Mesh[] => {
+    if (s.kind === "sphere")
+      return cells.map(({ dx, dy }) =>
+        sphereMesh(s.cx + dx, s.cy + dy, subH + s.cz, s.radiusNm),
+      );
+    if (fillsCell(s))
+      return [boxMesh(0, spanX, 0, spanY, subH + s.z0, subH + s.z1)];
+    return cells.map(({ dx, dy }) =>
+      boxMesh(
+        s.x0 + dx,
+        s.x1 + dx,
+        s.y0 + dy,
+        s.y1 + dy,
+        subH + s.z0,
+        subH + s.z1,
+      ),
+    );
+  };
   const data: Partial<PlotData>[] = [
     mesh(
       substrateKey,
       legendName(substrate),
-      boxMesh(0, periodNm, 0, periodYNm, 0, substrateTop),
+      boxMesh(0, spanX, 0, spanY, 0, substrateTop),
       joined.length > 0,
     ),
     ...ordered
       .filter((s) => !joinsSubstrate(s))
-      .map((s) =>
-        mesh(
-          materialKey(s),
-          legendName(s),
-          s.kind === "box"
-            ? boxMesh(s.x0, s.x1, s.y0, s.y1, subH + s.z0, subH + s.z1)
-            : sphereMesh(s.cx, s.cy, subH + s.cz, s.radiusNm),
-          s.translucent,
+      .flatMap((s) =>
+        meshesOf(s).map((m) =>
+          mesh(materialKey(s), legendName(s), m, s.translucent),
         ),
       ),
   ];
+  if (repeat > 1) {
+    // 単位胞の境目を基板の上面に引く。面と重なってちらつかないよう少し浮かせる
+    const x: (number | null)[] = [];
+    const y: (number | null)[] = [];
+    for (let i = 1; i < repeat; i++) {
+      x.push(i * periodNm, i * periodNm, null, 0, spanX, null);
+      y.push(0, spanY, null, i * periodYNm, i * periodYNm, null);
+    }
+    data.push({
+      type: "scatter3d",
+      mode: "lines",
+      x,
+      y,
+      z: x.map((v) => (v === null ? null : substrateTop + 0.5)),
+      line: { color: "rgba(0, 0, 0, 0.6)", width: 3 },
+      showlegend: false,
+      hoverinfo: "skip",
+    });
+  }
 
   return (
     <Plot
@@ -388,15 +548,24 @@ export function SolidView({
         height: 400,
         margin: { l: 0, r: 0, t: 0, b: 0 },
         scene: {
-          aspectmode: "data",
+          aspectmode: "manual",
+          aspectratio,
           camera: { eye },
-          xaxis: { title: { text: "x (nm)" }, range: [0, periodNm], nticks: 5 },
+          xaxis: {
+            title: { text: "x (nm)" },
+            range: [-padX, spanX + padX],
+            tickvals: ticks(spanX),
+          },
           yaxis: {
             title: { text: "y (nm)" },
-            range: [0, periodYNm],
-            nticks: 5,
+            range: [-padY, spanY + padY],
+            tickvals: ticks(spanY),
           },
-          zaxis: { title: { text: "高さ (nm)" }, range: [0, subH + maxTop] },
+          zaxis: {
+            title: { text: "高さ (nm)" },
+            range: [0, subH + maxTop],
+            dtick,
+          },
         },
         legend: { orientation: "h", y: 0, font: { size: 11 } },
         showlegend: true,
@@ -406,6 +575,13 @@ export function SolidView({
       config={{ displayModeBar: false, responsive: true }}
     />
   );
+}
+
+/** 目盛りが 6 本以内に収まる切りのよい刻み（1, 2, 5 × 10^n）。 */
+function tickStep(span: number): number {
+  const raw = span / 6;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  return pow * ([1, 2, 5].find((m) => m * pow >= raw) ?? 10);
 }
 
 function solidTop(s: Solid): number {
@@ -504,38 +680,42 @@ function sphereMesh(cx: number, cy: number, cz: number, r: number): Mesh {
 }
 
 /**
- * 3 次元構造の上面図（xy 面）。単位胞 1 つを軸なしで描き、周期と形の寸法を
- * 寸法線で、入射面を中央を通る線で示す（研究スライドの図に合わせた体裁）。
+ * 3 次元構造の上面図（xy 面）。単位胞を軸なしで描き、周期と形の寸法を寸法線で、
+ * 入射面を中央を通る線で示す（研究スライドの図に合わせた体裁）。
+ * repeat > 1 なら単位胞を並べ、隣の形との隙間の寸法も出す。
  */
 export function TopView({
   periodNm,
   periodYNm,
   shapes,
   phiDeg = 0,
+  repeat = 1,
 }: {
   periodNm: number;
   periodYNm: number;
   shapes: TopShape[];
   phiDeg?: number;
+  /** x, y それぞれに並べる周期の数。 */
+  repeat?: number;
 }) {
+  const spanX = periodNm * repeat;
+  const spanY = periodYNm * repeat;
   // 縮尺は周期によらず固定する（周期が違う構造を並べても同じ nm/px で比較できる）。
-  // 基準長より大きい周期のときだけ枠を周期に合わせて広げる。
-  const frame = Math.max(TOP_VIEW_FRAME_NM, periodNm, periodYNm);
+  // 基準長より大きいときだけ枠を広げる。
+  const frame = Math.max(TOP_VIEW_FRAME_NM, spanX, spanY);
   const unit = frame * 0.12;
   const plotShapes: Partial<Shape>[] = [
     {
       type: "rect",
       x0: 0,
       y0: 0,
-      x1: periodNm,
-      y1: periodYNm,
+      x1: spanX,
+      y1: spanY,
       line: { color: "#333333", width: 1.5 },
     },
   ];
   const annotations: Partial<Annotations>[] = [];
 
-  // 寸法線（JIS Z 8317 に倣う）: 両端矢印、数値は水平なら線の上、垂直なら線の左に
-  // 下から上へ読む向きで置く。単位は図の隅に一括で注記するので数値のみ。
   function dimension(
     x0: number,
     y0: number,
@@ -543,37 +723,7 @@ export function TopView({
     y1: number,
     label: string,
   ) {
-    const horizontal = y0 === y1;
-    annotations.push({
-      x: x1,
-      y: y1,
-      ax: x0,
-      ay: y0,
-      axref: "x",
-      ayref: "y",
-      xref: "x",
-      yref: "y",
-      text: "",
-      showarrow: true,
-      // plotly は "end+start" を受けるが型定義に無い
-      arrowside: "end+start" as Annotations["arrowside"],
-      arrowhead: 2,
-      arrowsize: 0.8,
-      arrowwidth: 1,
-      arrowcolor: "#333333",
-    });
-    annotations.push({
-      x: (x0 + x1) / 2,
-      y: (y0 + y1) / 2,
-      text: label,
-      showarrow: false,
-      font: { size: 11, color: "#333333" },
-      xanchor: horizontal ? "center" : "right",
-      yanchor: horizontal ? "bottom" : "middle",
-      xshift: horizontal ? 0 : -3,
-      yshift: horizontal ? 2 : 0,
-      textangle: horizontal ? "0" : "-90",
-    });
+    annotations.push(...dimensionLine(x0, y0, x1, y1, label));
   }
   // 寸法補助線: 対象の辺から少し離して始め、寸法線を少し越えるまで伸ばす
   const gap = unit * 0.15;
@@ -603,24 +753,41 @@ export function TopView({
     });
   }
 
-  // 中心線（一点鎖線）
-  const cx = periodNm / 2;
-  const cy = periodYNm / 2;
-  thinLine(cx, -gap * 2, cx, periodYNm + gap * 2, "dashdot");
-  thinLine(-gap * 2, cy, periodNm + gap * 2, cy, "dashdot");
+  // 単位胞の境目
+  for (let i = 1; i < repeat; i++) {
+    const x = i * periodNm;
+    const y = i * periodYNm;
+    plotShapes.push(
+      { type: "line", x0: x, y0: 0, x1: x, y1: spanY, line: CELL_LINE },
+      { type: "line", x0: 0, y0: y, x1: spanX, y1: y, line: CELL_LINE },
+    );
+  }
 
-  // 周期: x は上側、y は右側。大きい寸法ほど外側に置く
-  const topY = periodYNm + unit * 3;
-  const rightX = periodNm + unit * 3;
-  extensionY(0, periodYNm, topY);
-  extensionY(periodNm, periodYNm, topY);
+  // 中心線（一点鎖線）
+  const cx = spanX / 2;
+  const cy = spanY / 2;
+  thinLine(cx, -gap * 2, cx, spanY + gap * 2, "dashdot");
+  thinLine(-gap * 2, cy, spanX + gap * 2, cy, "dashdot");
+
+  // 周期: x は上側、y は右側。大きい寸法ほど外側に置く。
+  // 並べたときは左端の列・下端の行の 1 周期分に付ける
+  const topY = spanY + unit * 3;
+  const rightX = spanX + unit * 3;
+  extensionY(0, spanY, topY);
+  extensionY(periodNm, spanY, topY);
   dimension(0, topY, periodNm, topY, `${periodNm}`);
-  extensionX(0, periodNm, rightX);
-  extensionX(periodYNm, periodNm, rightX);
+  extensionX(0, spanX, rightX);
+  extensionX(periodYNm, spanX, rightX);
   dimension(rightX, 0, rightX, periodYNm, `${periodYNm}`);
 
   // 形: 円は直径 φ を上側に 1 本、矩形は幅を上側・奥行きを右側（どちらも周期の内側）に。
   // 左と下は入射の矢印のために空けておく。
+  // 並べたときは寸法線に近い胞（幅は左上、奥行きは右下）の形に付ける
+  const lastX = (repeat - 1) * periodNm;
+  const lastY = (repeat - 1) * periodYNm;
+  const sizeY = spanY + unit * 1.5;
+  const sizeX = spanX + unit * 1.5;
+  const bounds = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity };
   for (const s of shapes) {
     const w = s.kind === "circle" ? s.radiusNm * 2 : s.widthNm;
     const h = s.kind === "circle" ? s.radiusNm * 2 : s.heightNm;
@@ -628,24 +795,46 @@ export function TopView({
     const x1 = s.cxNm + w / 2;
     const y0 = s.cyNm - h / 2;
     const y1 = s.cyNm + h / 2;
-    plotShapes.push({
-      type: s.kind === "circle" ? "circle" : "rect",
-      x0,
-      y0,
-      x1,
-      y1,
-      fillcolor: PALETTE[0],
-      line: { color: "#333333", width: 1 },
-    });
-    const sizeY = periodYNm + unit * 1.5;
-    extensionY(x0, y1, sizeY);
-    extensionY(x1, y1, sizeY);
+    bounds.x0 = Math.min(bounds.x0, x0);
+    bounds.x1 = Math.max(bounds.x1, x1);
+    bounds.y0 = Math.min(bounds.y0, y0);
+    bounds.y1 = Math.max(bounds.y1, y1);
+    for (let i = 0; i < repeat; i++) {
+      for (let j = 0; j < repeat; j++) {
+        plotShapes.push({
+          type: s.kind === "circle" ? "circle" : "rect",
+          x0: x0 + i * periodNm,
+          y0: y0 + j * periodYNm,
+          x1: x1 + i * periodNm,
+          y1: y1 + j * periodYNm,
+          fillcolor: PALETTE[0],
+          line: { color: "#333333", width: 1 },
+        });
+      }
+    }
+    extensionY(x0, y1 + lastY, sizeY);
+    extensionY(x1, y1 + lastY, sizeY);
     dimension(x0, sizeY, x1, sizeY, s.kind === "circle" ? `φ${w}` : `${w}`);
     if (s.kind === "rect") {
-      const sizeX = periodNm + unit * 1.5;
-      extensionX(y0, x1, sizeX);
-      extensionX(y1, x1, sizeX);
+      extensionX(y0, x1 + lastX, sizeX);
+      extensionX(y1, x1 + lastX, sizeX);
       dimension(sizeX, y0, sizeX, y1, `${h}`);
+    }
+  }
+
+  // 隣の胞の形との隙間。形の寸法と同じ線上に続けて置く
+  if (repeat > 1 && shapes.length > 0) {
+    const gapX = periodNm - (bounds.x1 - bounds.x0);
+    if (gapX > 0) {
+      extensionY(bounds.x1, bounds.y1 + lastY, sizeY);
+      extensionY(bounds.x0 + periodNm, bounds.y1 + lastY, sizeY);
+      dimension(bounds.x1, sizeY, bounds.x0 + periodNm, sizeY, formatNm(gapX));
+    }
+    const gapY = periodYNm - (bounds.y1 - bounds.y0);
+    if (gapY > 0) {
+      extensionX(bounds.y1, bounds.x1 + lastX, sizeX);
+      extensionX(bounds.y0 + periodYNm, bounds.x1 + lastX, sizeX);
+      dimension(sizeX, bounds.y1, sizeX, bounds.y0 + periodYNm, formatNm(gapY));
     }
   }
 
@@ -664,8 +853,8 @@ export function TopView({
   const phi = (phiDeg * Math.PI) / 180;
   const dir = { x: Math.cos(phi), y: Math.sin(phi) };
   const half = Math.min(
-    Math.abs(dir.x) > 1e-9 ? periodNm / 2 / Math.abs(dir.x) : Infinity,
-    Math.abs(dir.y) > 1e-9 ? periodYNm / 2 / Math.abs(dir.y) : Infinity,
+    Math.abs(dir.x) > 1e-9 ? spanX / 2 / Math.abs(dir.x) : Infinity,
+    Math.abs(dir.y) > 1e-9 ? spanY / 2 / Math.abs(dir.y) : Infinity,
   );
   const tail = half + unit * 1.2;
   plotShapes.push({
@@ -682,7 +871,7 @@ export function TopView({
       type: "line",
       x0: cx - tail,
       y0: cy,
-      x1: periodNm,
+      x1: spanX,
       y1: cy,
       line: { color: "#e6b800", width: 1.5, dash: "dot" },
     });
