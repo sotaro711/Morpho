@@ -10,6 +10,7 @@ import { LayerEditor } from "@/components/LayerEditor";
 import { NumberInput } from "@/components/NumberInput";
 import { OpticsFields } from "@/components/OpticsFields";
 import { PairInsertForm } from "@/components/PairInsertForm";
+import { SegmentedToggle } from "@/components/SegmentedToggle";
 import { SettingsForm } from "@/components/SettingsForm";
 import { useSimulator3D } from "@/components/Simulator3DProvider";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import {
   type SectionAxis,
   type SphereConfig,
   type Template3D,
+  type TopShape,
 } from "@/lib/lattice3d";
 import type { Medium, Settings } from "@/lib/stack";
 
@@ -74,10 +76,31 @@ const COLOR_SWEEP_WL = { wlMin: 380, wlMax: 780, wlPoints: 41 };
 const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
 const ANGLE_SWEEP_WL = { wavelengthsNm: [400, 470, 540, 600, 700] };
 
+type StructureFigure = "solid" | "section" | "top";
+const FIGURES: { value: StructureFigure; label: string }[] = [
+  { value: "solid", label: "立体図" },
+  { value: "section", label: "断面図" },
+  { value: "top", label: "上面図" },
+];
+// 3×3 は隣の形との距離を見るための表示。
+const REPEATS: { value: number; label: string }[] = [
+  { value: 1, label: "1×1" },
+  { value: 3, label: "3×3" },
+];
+
 const TEMPLATES: { value: Template3D; label: string }[] = [
   { value: "sphere", label: "球の配列" },
   { value: "pillar", label: "角柱の段差" },
 ];
+
+function topShapeRange(s: TopShape, axis: SectionAxis): [number, number] {
+  const center = axis === "x" ? s.cxNm : s.cyNm;
+  const half =
+    s.kind === "circle"
+      ? s.radiusNm
+      : (axis === "x" ? s.widthNm : s.heightNm) / 2;
+  return [center - half, center + half];
+}
 
 export default function Lattice3DPage() {
   const sim = useSimulator3D();
@@ -91,6 +114,8 @@ export default function Lattice3DPage() {
     anglesSweep,
   } = sim;
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [figure, setFigure] = useState<StructureFigure>("solid");
+  const [repeat, setRepeat] = useState(1);
   const loading = colorsSweep.loading || anglesSweep.loading;
   const error = colorsSweep.error ?? anglesSweep.error;
 
@@ -143,6 +168,14 @@ export default function Lattice3DPage() {
     template === "sphere"
       ? sphereTopShapes(sim.sphere)
       : pillarTopShapes(sim.pillar, sim.pillarSubstrate);
+  // 形が断面の横軸上で占める範囲（隣との隙間の寸法用）。
+  const sectionExtent: [number, number] | null =
+    topShapes.length === 0
+      ? null
+      : [
+          Math.min(...topShapes.map((s) => topShapeRange(s, axis)[0])),
+          Math.max(...topShapes.map((s) => topShapeRange(s, axis)[1])),
+        ];
   const substrate =
     template === "sphere" ? sim.sphereSubstrate : sim.pillarSubstrate;
   const boxes =
@@ -286,29 +319,51 @@ export default function Lattice3DPage() {
         <div className="grid min-w-0 gap-6 lg:sticky lg:top-6 lg:self-start">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">
-                構造（立体図・断面図・上面図）
-              </CardTitle>
+              <CardTitle className="text-base">構造</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <SolidView
-                periodNm={periodNm}
-                periodYNm={periodYNm}
-                solids={solids}
-                substrate={substrate}
-              />
-              <CrossSectionView
-                periodNm={sectionPeriodNm}
-                boxes={boxes}
-                substrate={substrate}
-                axis={axis}
-              />
-              <TopView
-                periodNm={periodNm}
-                periodYNm={periodYNm}
-                shapes={topShapes}
-                phiDeg={settings.phiDeg}
-              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <SegmentedToggle
+                  label="表示する図"
+                  options={FIGURES}
+                  value={figure}
+                  onChange={setFigure}
+                />
+                <SegmentedToggle
+                  label="並べる周期の数"
+                  options={REPEATS}
+                  value={repeat}
+                  onChange={setRepeat}
+                />
+              </div>
+              {figure === "solid" && (
+                <SolidView
+                  periodNm={periodNm}
+                  periodYNm={periodYNm}
+                  solids={solids}
+                  substrate={substrate}
+                  repeat={repeat}
+                />
+              )}
+              {figure === "section" && (
+                <CrossSectionView
+                  periodNm={sectionPeriodNm}
+                  boxes={boxes}
+                  substrate={substrate}
+                  axis={axis}
+                  repeat={repeat}
+                  extent={sectionExtent}
+                />
+              )}
+              {figure === "top" && (
+                <TopView
+                  periodNm={periodNm}
+                  periodYNm={periodYNm}
+                  shapes={topShapes}
+                  phiDeg={settings.phiDeg}
+                  repeat={repeat}
+                />
+              )}
             </CardContent>
           </Card>
 

@@ -65,7 +65,7 @@ export const DEFAULT_SPHERE: SphereConfig = {
   periodNm: 160,
   periodYNm: 160,
   diameterNm: 120,
-  slices: 8,
+  slices: 20,
   numBasis: DEFAULT_NUM_BASIS_3D,
   particle: { name: "Si", n: 4.0, k: 0.072 },
   resin: { enabled: false, medium: { name: "樹脂", n: 1.5, k: 0 }, topNm: 120 },
