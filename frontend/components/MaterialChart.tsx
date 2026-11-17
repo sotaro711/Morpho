@@ -22,7 +22,7 @@ export default function MaterialChart({ points: registered }: { points: Dispersi
           name: "n",
           type: "scatter",
           mode: "lines",
-          line: { color: "#2563eb", width: 2 },
+          line: { color: "#000000", width: 2 },
           hovertemplate: "n = %{y:.4f}<extra></extra>",
         },
         ...(absorbs
@@ -46,7 +46,7 @@ export default function MaterialChart({ points: registered }: { points: Dispersi
         margin: { l: 48, r: absorbs ? 48 : 16, t: 8, b: 40 },
         hovermode: "x unified",
         xaxis: { title: { text: "波長 (nm)" }, range: [WL_MIN, WL_MAX], tick0: WL_MIN, dtick: 100 },
-        yaxis: { title: { text: "n" }, tickfont: { color: "#2563eb" } },
+        yaxis: { title: { text: "n" } },
         yaxis2: {
           title: { text: "k" },
           overlaying: "y",
