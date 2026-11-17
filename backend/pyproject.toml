@@ -68,6 +68,7 @@ venv = ".venv"
 # 層の依存は外側から内側にだけ向ける（presentation → application → domain、infrastructure → domain）。
 [tool.importlinter]
 root_package = "s4web"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "クリーンアーキテクチャの層"
@@ -79,3 +80,9 @@ layers = [
     "application | infrastructure",
     "domain",
 ]
+
+[[tool.importlinter.contracts]]
+name = "domain は外部ライブラリに依存しない"
+type = "forbidden"
+source_modules = ["s4web.domain"]
+forbidden_modules = ["fastapi", "starlette", "pydantic", "psycopg", "google", "colour", "jwt", "S4"]
