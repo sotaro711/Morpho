@@ -74,3 +74,34 @@ jobs:
           # ビルドが通るかだけを見るので、実在しない値でよい
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_dummy
+
+  api-contract:
+    name: api-contract (openapi.json / schema.d.ts)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: openapi.json を再生成
+        working-directory: backend
+        run: |
+          uv sync --no-group solver
+          uv run --no-group solver python scripts/export_openapi.py
+
+      - name: frontend の型を再生成
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run gen:api
+
+      # API を変えたのに再生成をコミットし忘れると、ここで差分が出て落ちる。
+      - name: 生成物がコミット済みと一致するか
+        run: git diff --exit-code -- openapi.json frontend/lib/api/schema.d.ts
