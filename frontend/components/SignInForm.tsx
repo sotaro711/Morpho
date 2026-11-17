@@ -10,14 +10,12 @@ import { supabase } from "@/lib/supabase";
 
 type Props = { onSignUp: () => void };
 
-/** メールとパスワードでのログイン。 */
 export function SignInForm({ onSignUp }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
-  // 成功すると onAuthStateChange 経由で AuthGate が計算画面に切り替える。
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPending(true);

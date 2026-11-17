@@ -1,8 +1,3 @@
-"""/api/health（liveness probe の確認先）が、スレッドプールが埋まっていても応答するかを確かめる。
-
-httpx を入れていないので TestClient は使わず、ASGI アプリを直接呼ぶ。
-"""
-
 import threading
 
 import anyio
@@ -21,7 +16,7 @@ async def _get_status(path: str) -> int | None:
     async def send(message: dict[str, object]) -> None:
         nonlocal status
         if message["type"] == "http.response.start":
-            status = message["status"]  # type: ignore[assignment]
+            status = message["status"]
 
     scope = {
         "type": "http",
@@ -47,7 +42,6 @@ def test_health_returns_ok() -> None:
 
 def test_health_responds_while_thread_pool_is_full() -> None:
     async def run() -> int | None:
-        # 同期のエンドポイント（S4 の計算など）が使うスレッドプールを 1 本にして、それを塞ぐ。
         # このリミッターは anyio.run() が作るイベントループごとにあるので、他のテストに影響しない。
         anyio.to_thread.current_default_thread_limiter().total_tokens = 1
         release = threading.Event()

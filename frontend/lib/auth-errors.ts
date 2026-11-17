@@ -1,7 +1,5 @@
 import { isAuthError, isAuthRetryableFetchError } from "@supabase/supabase-js";
 
-// Supabase Auth のエラーコードごとの日本語文言。メッセージ文字列は SDK の更新で
-// 変わりうるので、判定には code を使う。
 const MESSAGES: Record<string, string> = {
   invalid_credentials: "メールアドレスかパスワードが違います",
   email_not_confirmed:
@@ -15,7 +13,6 @@ const MESSAGES: Record<string, string> = {
   signup_disabled: "現在、新規登録を受け付けていません",
 };
 
-/** Supabase Auth のエラーを画面に出す日本語の文言にする。 */
 export function authErrorMessage(error: unknown): string {
   if (isAuthRetryableFetchError(error)) {
     return "通信に失敗しました。ネットワークを確認して再度お試しください";

@@ -1,8 +1,3 @@
-"""ユーザーが保存する計算結果の API。
-
-他人の結果は、存在しないものと同じ 404 にする（存在の有無も分からないようにする）。
-"""
-
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -20,7 +15,6 @@ from s4web.presentation.schemas.result_dto import ResultCreateRequest, ResultDTO
 
 router = APIRouter()
 
-# 一覧に出す件数。古いものは一覧に出ないだけで消えない。
 LIST_LIMIT = 50
 
 User = Annotated[AuthenticatedUser, Depends(current_user)]

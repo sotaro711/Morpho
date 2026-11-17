@@ -8,19 +8,14 @@ import {
   type DiffractionMode,
 } from "@/lib/diffraction";
 
-/** 折れ線の色。おおまかに「その波長が単色光として見える色」に寄せる(スライドの配色)。 */
 export function wavelengthColor(wlNm: number): string {
-  if (wlNm < 430) return "#7c3aed"; // 紫
-  if (wlNm < 500) return "#2563eb"; // 青
-  if (wlNm < 565) return "#16a34a"; // 緑
-  if (wlNm < 625) return "#d9a406"; // 黄
-  return "#dc2626"; // 赤
+  if (wlNm < 430) return "#7c3aed";
+  if (wlNm < 500) return "#2563eb";
+  if (wlNm < 565) return "#16a34a";
+  if (wlNm < 625) return "#d9a406";
+  return "#dc2626";
 }
 
-/**
- * 角度スイープチャート(研究スライド上段の形式)。
- * 波長ごとに 1 本の折れ線(x = 入射角、y = その波長の全反射率)。
- */
 export default function AngleSweepChart({
   sweep,
   mode = "zeroth",

@@ -9,7 +9,6 @@ if (!url || !publishableKey) {
   );
 }
 
-// supabase-js の既定は implicit フローなので、PKCE を明示する。
 // Google から戻ったときの ?code= は detectSessionInUrl(既定で有効)がブラウザ内で交換する。
 export const supabase = createClient(url, publishableKey, {
   auth: { flowType: "pkce" },

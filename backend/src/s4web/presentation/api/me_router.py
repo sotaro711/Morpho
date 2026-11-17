@@ -1,5 +1,3 @@
-"""ログイン中ユーザーを返すルーター。フロントとの疎通確認に使う。"""
-
 from typing import Annotated
 
 from fastapi import APIRouter, Depends

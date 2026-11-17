@@ -14,16 +14,12 @@ import { getMaterial, type MaterialDetail, type MaterialSummary } from "@/lib/ap
 import { hasAbsorption } from "@/lib/dispersion";
 import { cn } from "@/lib/utils";
 
-// Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const MaterialChart = dynamic(() => import("@/components/MaterialChart"), { ssr: false });
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** 登録した材料（波長ごとの n, k）の登録・一覧・グラフ・名前変更・削除。 */
 export function MaterialLibrary() {
   const { materials, loading, loadError, reload, add, rename, remove } = useMaterials();
-  // グラフを開いている材料（id → n, k の表）。複数を開いて見比べられる。
-  // 登録直後もその材料のグラフを開き、読み込みが正しいかをその場で確かめられるようにする。
   const [opened, setOpened] = useState<Record<string, MaterialDetail>>({});
   const open = (detail: MaterialDetail) => setOpened((prev) => ({ ...prev, [detail.id]: detail }));
   const close = (id: string) =>
@@ -92,7 +88,6 @@ function RegisterForm({
   const pick = (picked: File | null) => {
     setFile(picked);
     setError(null);
-    // 名前の初期値はファイル名（拡張子なし）。
     if (picked) setName(picked.name.replace(/\.[^.]+$/, ""));
   };
 

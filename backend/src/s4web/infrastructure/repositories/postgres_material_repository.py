@@ -1,6 +1,4 @@
-"""Supabase Postgres の materials テーブルを使う MaterialRepository の実装。
-
-接続は Supavisor（Supabase の接続プーラー）のトランザクションモードを想定する。
+"""接続は Supavisor（Supabase の接続プーラー）のトランザクションモードを想定する。
 このモードは接続を文ごとに使い回すため、サーバー側のプリペアドステートメントを使えない
 （prepare_threshold=None で無効にする）。
 """
@@ -24,7 +22,6 @@ _COLUMNS = "id, name, wavelengths_nm, n, k, created_at"
 
 
 def ensure_database_configured() -> None:
-    """DATABASE_URL が設定されているかを確かめる。未設定なら RuntimeError。"""
     if not os.environ.get("DATABASE_URL"):
         raise RuntimeError("DATABASE_URL が設定されていません")
 
@@ -75,7 +72,7 @@ class PostgresMaterialRepository(MaterialRepository):
             ).fetchone()
         except psycopg.errors.UniqueViolation as exc:
             raise DuplicateMaterialNameError(draft.name) from exc
-        assert row is not None  # insert ... returning は必ず 1 行返す
+        assert row is not None
         material_id, created_at = row
         return SavedMaterial(
             id=str(material_id), name=draft.name, material=draft.material, created_at=created_at

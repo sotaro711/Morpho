@@ -8,9 +8,6 @@ import type { LayerDTO } from "@/lib/api/client";
 import type { Box, SectionAxis, Solid, TopShape } from "@/lib/lattice3d";
 import type { StructureColumn } from "@/lib/stepped";
 
-// 構造の2次元断面図（横軸=位置, 縦軸=高さ）。入力の層データだけから描く（API 不要）。
-// stepped が渡されたら段付きモード: カラムごとの矩形を実寸の x 座標で描く。
-
 const PALETTE = [
   "#1f77b4",
   "#ff7f0e",
@@ -24,10 +21,8 @@ const PALETTE = [
   "#17becf",
 ];
 
-// 平面多層膜には面内の周期が無いので、断面図の横幅は表示用の公称値を使う。
 const DISPLAY_WIDTH = 100;
 
-// materialId があれば登録した材料（波長分散）で、n, k は使わない。
 type Optical = {
   name: string;
   n?: number | null;
@@ -35,17 +30,12 @@ type Optical = {
   materialId?: string | null;
 };
 
-// 材料 id → 材料名。
 type MaterialNames = Map<string, string>;
 
-// 色分けのキー。名前ではなく光学定数で分けることで、同じ材料のつもりで
-// n や k を打ち間違えた層が別色になり、入力ミスに気づけるようにする(#33)。
-// 登録した材料は材料ごとに 1 色にする。
 function materialKey({ n, k, materialId }: Optical): string {
   return materialId ? `material:${materialId}` : `${n ?? "?"}|${k}`;
 }
 
-// 出現順にパレットを割り当てる。キーの重複は最初の出現位置を優先する。
 function assignColors(keys: Iterable<string>): Map<string, string> {
   const colorOf = new Map<string, string>();
   for (const key of keys) {
@@ -61,7 +51,6 @@ function formatIndex(
 ): string {
   if (materialId) {
     const materialName = names.get(materialId);
-    // 層名が材料名と同じなら繰り返さない。
     if (materialName === undefined) return "削除された材料";
     return materialName === name ? "登録した材料" : `材料: ${materialName}`;
   }
@@ -79,7 +68,6 @@ export default function StructureView({
   const { materials } = useMaterials();
   const names: MaterialNames = new Map(materials.map((m) => [m.id, m.name]));
   if (stepped && stepped.columns.length > 0) {
-    // 基板は layers の末尾（structureLayers の規約）。段付き表示にも引き継ぐ。
     const substrate = layers[layers.length - 1] ?? { name: "基板", n: 1, k: 0 };
     return (
       <SteppedView
@@ -93,7 +81,6 @@ export default function StructureView({
   return <PlanarView layers={layers} names={names} />;
 }
 
-/** 段付きモード: 1 周期分の断面をカラムごとに実寸で描く。 */
 function SteppedView({
   periodNm,
   columns,
@@ -105,11 +92,8 @@ function SteppedView({
   substrate: Optical;
   names: MaterialNames;
 }) {
-  // 光学定数 → 色。平面モードと同じく膜(上の層)から順に割り当て、基板は最後。
-  // 基板上げの台座は基板と同じ光学定数なので、自動的に同じ色になる。
   const substrateKey = materialKey(substrate);
   const keys: string[] = [];
-  // slabs は下→上の順なので、平面モード(上の層から順)と同じ割り当てになるよう反転して走査する
   for (const c of columns) {
     for (const s of [...c.slabs].reverse()) {
       const key = materialKey(s);
@@ -125,7 +109,7 @@ function SteppedView({
       return last ? last.zNm + last.thicknessNm : 0;
     }),
   );
-  const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
+  const subH = Math.max(maxTop * 0.15, 60);
 
   const shapes: Partial<Shape>[] = [
     rect(0, 0, periodNm, subH, colorOf.get(substrateKey)!),
@@ -182,10 +166,6 @@ function SteppedView({
   );
 }
 
-/**
- * 3 次元構造の断面（y = 周期/2 の xz 面）。箱の並びをそのまま実寸で描く。
- * 球の輪切りや角柱の多層膜など、カラムに分けられない形のための汎用版。
- */
 export function CrossSectionView({
   periodNm,
   boxes,
@@ -198,14 +178,11 @@ export function CrossSectionView({
   boxes: Box[];
   substrate: Optical;
   axis?: SectionAxis;
-  /** 横に並べる周期の数。 */
   repeat?: number;
-  /** 形が横軸上で占める範囲 (nm)。並べたときに隣との隙間の寸法を出すのに使う。 */
   extent?: [number, number] | null;
 }) {
   const { materials } = useMaterials();
   const names: MaterialNames = new Map(materials.map((m) => [m.id, m.name]));
-  // 色は上の箱から順に割り当て、基板は最後（平面・段付きと同じ規約）。
   const substrateKey = materialKey(substrate);
   const ordered = [...boxes].sort((a, b) => b.z1 - a.z1);
   const colorOf = assignColors([
@@ -214,10 +191,8 @@ export function CrossSectionView({
   ]);
 
   const maxTop = Math.max(0, ...boxes.map((b) => b.z1));
-  const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
+  const subH = Math.max(maxTop * 0.15, 60);
 
-  // 基板と同じ材料で基板の上に全幅で載る箱（球を埋める樹脂）は、界面が無いので
-  // 基板とつなげて 1 つの矩形にする。
   const joinsSubstrate = (b: Box) =>
     materialKey(b) === substrateKey &&
     b.z0 === 0 &&
@@ -226,7 +201,6 @@ export function CrossSectionView({
   const substrateTop =
     subH + Math.max(0, ...boxes.filter(joinsSubstrate).map((b) => b.z1));
 
-  // 全幅の箱は周期の境目に線が入らないよう 1 つに伸ばし、それ以外は周期ごとに並べる。
   const span = periodNm * repeat;
   const cells = Array.from({ length: repeat }, (_, i) => i * periodNm);
   const shapes: Partial<Shape>[] = [
@@ -263,7 +237,6 @@ export function CrossSectionView({
     });
   }
 
-  // 隣との隙間: 中央の形とその右隣の間を、構造の上に寸法線で示す。
   const gapNm = extent ? periodNm - (extent[1] - extent[0]) : 0;
   const showGap = repeat > 1 && extent != null && gapNm > 0;
   if (showGap) {
@@ -306,7 +279,6 @@ export function CrossSectionView({
           title: { text: "高さ (nm)" },
           range: [0, subH + maxTop * (showGap ? 1.25 : 1.05)],
           zeroline: false,
-          // 球が球に見えるよう x と同じ縮尺で描く。範囲は変えず描画領域を縮める
           scaleanchor: "x",
           scaleratio: 1,
           constrain: "domain",
@@ -322,8 +294,6 @@ export function CrossSectionView({
   );
 }
 
-// 寸法線（JIS Z 8317 に倣う）: 両端矢印、数値は水平なら線の上、垂直なら線の左に
-// 下から上へ読む向きで置く。単位は図の隅か軸に示すので数値のみ。
 function dimensionLine(
   x0: number,
   y0: number,
@@ -366,29 +336,20 @@ function dimensionLine(
   ];
 }
 
-// 浮動小数の端数（0.1 + 0.2 の類）を寸法に出さない
 function formatNm(v: number): string {
   return `${Number(v.toFixed(1))}`;
 }
 
-// 周期を並べたときの単位胞の境目。構造の邪魔にならない薄い点線にする。
 const CELL_LINE = {
   color: "rgba(0, 0, 0, 0.35)",
   width: 1,
   dash: "dot",
 } as const;
 
-/** 立体図の縮尺の基準長 (nm)。1 周期がこれ以下なら同じ縮尺で描く。 */
 const SOLID_VIEW_CELL_NM = 450;
 
-/** 上面図の縮尺の基準長 (nm)。周期がこれ以下なら同じ縮尺で描く。 */
 const TOP_VIEW_FRAME_NM = 600;
 
-/**
- * 3 次元構造の立体図。単位胞を repeat × repeat 個並べて実寸比で描き、ドラッグで回せる。
- * 各立体は頂点の凸包（alphahull 0）で面を張るので、箱は 8 頂点、球は緯線・経線の
- * 格子点を渡すだけでよい。
- */
 export function SolidView({
   periodNm,
   periodYNm,
@@ -400,7 +361,6 @@ export function SolidView({
   periodYNm: number;
   solids: Solid[];
   substrate: Optical;
-  /** x, y それぞれに並べる周期の数。 */
   repeat?: number;
 }) {
   const { materials } = useMaterials();
@@ -413,12 +373,10 @@ export function SolidView({
   ]);
 
   const maxTop = Math.max(0, ...solids.map(solidTop));
-  const subH = Math.max(maxTop * 0.15, 60); // 半無限の基板は名目高さで描く
+  const subH = Math.max(maxTop * 0.15, 60);
 
   const spanX = periodNm * repeat;
   const spanY = periodYNm * repeat;
-  // 縮尺は周期によらず固定する（周期を変えた図を並べたとき、粒子の大きさが同じで
-  // 周期だけが変わって見える）。基準より大きい周期のときだけ枠を広げる。
   const frame = Math.max(SOLID_VIEW_CELL_NM * repeat, spanX, spanY);
   const padX = (frame - spanX) / 2;
   const padY = (frame - spanY) / 2;
@@ -433,11 +391,7 @@ export function SolidView({
   };
   const eye = { x: 0.95, y: -1.2, z: 0.6 };
 
-  // 等縮尺なので目盛りの刻みも 3 軸でそろえる（高さだけ細かいと詰まって読めない）
-  // 高さも含めて決める（入力途中の極小の周期で高さの目盛りが増えすぎないように）
   const dtick = tickStep(Math.max(spanX, spanY, subH + maxTop));
-  // 枠の余白には目盛りを振らない。構造が枠の中央にあると x と y の 0 が離れた位置に
-  // 2 つ出るので、0 は高さの軸だけに振る
   const ticks = (span: number) =>
     Array.from({ length: Math.floor(span / dtick) }, (_, i) => (i + 1) * dtick);
 
@@ -474,8 +428,6 @@ export function SolidView({
     s.x1 >= periodNm &&
     s.y0 <= 0 &&
     s.y1 >= periodYNm;
-  // 基板と同じ材料で基板の上に単位胞いっぱいに載る半透明の箱（球を埋める樹脂）は、
-  // 界面が無いので基板とつなげて 1 つの半透明の箱にする。
   const joinsSubstrate = (s: Solid) =>
     fillsCell(s) &&
     !!s.translucent &&
@@ -488,7 +440,6 @@ export function SolidView({
     dx: (i % repeat) * periodNm,
     dy: Math.floor(i / repeat) * periodYNm,
   }));
-  // 単位胞いっぱいの箱は周期の境目に面が入らないよう 1 つに伸ばし、それ以外は周期ごとに並べる。
   const meshesOf = (s: Solid): Mesh[] => {
     if (s.kind === "sphere")
       return cells.map(({ dx, dy }) =>
@@ -523,7 +474,6 @@ export function SolidView({
       ),
   ];
   if (repeat > 1) {
-    // 単位胞の境目を基板の上面に引く。面と重なってちらつかないよう少し浮かせる
     const x: (number | null)[] = [];
     const y: (number | null)[] = [];
     for (let i = 1; i < repeat; i++) {
@@ -579,7 +529,6 @@ export function SolidView({
   );
 }
 
-/** 目盛りが 6 本以内に収まる切りのよい刻み（1, 2, 5 × 10^n）。 */
 function tickStep(span: number): number {
   const raw = span / 6;
   const pow = 10 ** Math.floor(Math.log10(raw));
@@ -590,7 +539,6 @@ function solidTop(s: Solid): number {
   return s.kind === "box" ? s.z1 : s.cz + s.radiusNm;
 }
 
-/** 頂点座標と三角形の頂点番号 (i, j, k)。 */
 type Mesh = {
   x: number[];
   y: number[];
@@ -598,7 +546,6 @@ type Mesh = {
   i: Int32Array;
   j: Int32Array;
   k: Int32Array;
-  /** 面ごとの陰影ではなく頂点で補間する（球を滑らかに見せる）。 */
   smooth?: boolean;
 };
 
@@ -622,20 +569,19 @@ function triangles(tris: number[][]): Pick<Mesh, "i" | "j" | "k"> {
   };
 }
 
-// 頂点は下面 0-3、上面 4-7 を反時計回りに並べる
 const BOX_TRIANGLES = [
   [0, 2, 1],
-  [0, 3, 2], // 下面
+  [0, 3, 2],
   [4, 5, 6],
-  [4, 6, 7], // 上面
+  [4, 6, 7],
   [0, 1, 5],
-  [0, 5, 4], // 手前 (y0)
+  [0, 5, 4],
   [1, 2, 6],
-  [1, 6, 5], // 右 (x1)
+  [1, 6, 5],
   [2, 3, 7],
-  [2, 7, 6], // 奥 (y1)
+  [2, 7, 6],
   [3, 0, 4],
-  [3, 4, 7], // 左 (x0)
+  [3, 4, 7],
 ];
 
 function boxMesh(
@@ -654,7 +600,6 @@ function boxMesh(
   };
 }
 
-/** 緯線 rings 本 × 経線 segments 本の格子で球を張る。 */
 function sphereMesh(cx: number, cy: number, cz: number, r: number): Mesh {
   const rings = 16;
   const segments = 24;
@@ -681,11 +626,6 @@ function sphereMesh(cx: number, cy: number, cz: number, r: number): Mesh {
   return { x, y, z, ...triangles(tris), smooth: true };
 }
 
-/**
- * 3 次元構造の上面図（xy 面）。単位胞を軸なしで描き、周期と形の寸法を寸法線で、
- * 入射面を中央を通る線で示す（研究スライドの図に合わせた体裁）。
- * repeat > 1 なら単位胞を並べ、隣の形との隙間の寸法も出す。
- */
 export function TopView({
   periodNm,
   periodYNm,
@@ -697,13 +637,10 @@ export function TopView({
   periodYNm: number;
   shapes: TopShape[];
   phiDeg?: number;
-  /** x, y それぞれに並べる周期の数。 */
   repeat?: number;
 }) {
   const spanX = periodNm * repeat;
   const spanY = periodYNm * repeat;
-  // 縮尺は周期によらず固定する（周期が違う構造を並べても同じ nm/px で比較できる）。
-  // 基準長より大きいときだけ枠を広げる。
   const frame = Math.max(TOP_VIEW_FRAME_NM, spanX, spanY);
   const unit = frame * 0.12;
   const plotShapes: Partial<Shape>[] = [
@@ -727,7 +664,6 @@ export function TopView({
   ) {
     annotations.push(...dimensionLine(x0, y0, x1, y1, label));
   }
-  // 寸法補助線: 対象の辺から少し離して始め、寸法線を少し越えるまで伸ばす
   const gap = unit * 0.15;
   const over = unit * 0.25;
   function extensionY(x: number, yEdge: number, yDim: number) {
@@ -755,7 +691,6 @@ export function TopView({
     });
   }
 
-  // 単位胞の境目
   for (let i = 1; i < repeat; i++) {
     const x = i * periodNm;
     const y = i * periodYNm;
@@ -765,14 +700,11 @@ export function TopView({
     );
   }
 
-  // 中心線（一点鎖線）
   const cx = spanX / 2;
   const cy = spanY / 2;
   thinLine(cx, -gap * 2, cx, spanY + gap * 2, "dashdot");
   thinLine(-gap * 2, cy, spanX + gap * 2, cy, "dashdot");
 
-  // 周期: x は上側、y は右側。大きい寸法ほど外側に置く。
-  // 並べたときは左端の列・下端の行の 1 周期分に付ける
   const topY = spanY + unit * 3;
   const rightX = spanX + unit * 3;
   extensionY(0, spanY, topY);
@@ -782,9 +714,6 @@ export function TopView({
   extensionX(periodYNm, spanX, rightX);
   dimension(rightX, 0, rightX, periodYNm, `${periodYNm}`);
 
-  // 形: 円は直径 φ を上側に 1 本、矩形は幅を上側・奥行きを右側（どちらも周期の内側）に。
-  // 左と下は入射の矢印のために空けておく。
-  // 並べたときは寸法線に近い胞（幅は左上、奥行きは右下）の形に付ける
   const lastX = (repeat - 1) * periodNm;
   const lastY = (repeat - 1) * periodYNm;
   const sizeY = spanY + unit * 1.5;
@@ -824,7 +753,6 @@ export function TopView({
     }
   }
 
-  // 隣の胞の形との隙間。形の寸法と同じ線上に続けて置く
   if (repeat > 1 && shapes.length > 0) {
     const gapX = periodNm - (bounds.x1 - bounds.x0);
     if (gapX > 0) {
@@ -840,7 +768,6 @@ export function TopView({
     }
   }
 
-  // 単位の注記（寸法数値には付けない）
   annotations.push({
     x: rightX,
     y: -unit,
@@ -851,7 +778,6 @@ export function TopView({
     yanchor: "top",
   });
 
-  // 入射面: x 軸から φ だけ回った向きの線。単位胞の外（ラベル側）から反対側の辺まで引く
   const phi = (phiDeg * Math.PI) / 180;
   const dir = { x: Math.cos(phi), y: Math.sin(phi) };
   const half = Math.min(
@@ -867,7 +793,6 @@ export function TopView({
     y1: cy + dir.y * half,
     line: { color: "#e6b800", width: 3 },
   });
-  // φ ≠ 0 のときは基準（φ = 0°、x 方向）を点線で添えて、何からの角度か分かるようにする
   if (phiDeg !== 0) {
     plotShapes.push({
       type: "line",
@@ -915,7 +840,6 @@ export function TopView({
           visible: false,
           range: [-unit * 3, frame + unit * 4.5],
           fixedrange: true,
-          // 上面図は x, y を同じ縮尺で描く（正方形が正方形に見えるように）
           scaleanchor: "x",
           scaleratio: 1,
         },
@@ -930,7 +854,6 @@ export function TopView({
   );
 }
 
-/** 平面モード: 従来どおり全層を横幅いっぱいの帯として描く。 */
 function PlanarView({
   layers,
   names,
@@ -940,7 +863,6 @@ function PlanarView({
 }) {
   const colorOf = assignColors(layers.map(materialKey));
 
-  // 表示用の各層の高さ。半無限層（厚さ0）には名目高さを与える。
   const finiteSum = layers.reduce(
     (s, l) => s + (l.thicknessNm > 0 ? l.thicknessNm : 0),
     0,
@@ -953,7 +875,7 @@ function PlanarView({
   const shapes: Partial<Shape>[] = [];
   const annotations: Partial<Annotations>[] = [];
 
-  let top = total; // 先頭（入射側）を一番上に描く
+  let top = total;
   for (const layer of layers) {
     const h = dispH(layer);
     const y0 = top - h;
@@ -980,7 +902,6 @@ function PlanarView({
         autosize: true,
         height: 320,
         margin: { l: 48, r: 16, t: 8, b: 40 },
-        // 平面多層膜なので横方向は意味を持たない。軸は隠す。
         xaxis: {
           range: [0, DISPLAY_WIDTH],
           zeroline: false,

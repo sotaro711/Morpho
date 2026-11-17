@@ -66,7 +66,6 @@ def test_unknown_material_id_is_rejected() -> None:
 
 
 def test_material_id_must_be_a_uuid() -> None:
-    # UUID でない id をそのまま DB に渡すと Postgres の型エラー（500）になるので、入口で弾く。
     with pytest.raises(ValidationError):
         _request(
             layers=[
@@ -88,7 +87,6 @@ def test_layer_without_n_or_material_id_is_rejected() -> None:
 
 
 def test_region_without_shape_is_a_stripe() -> None:
-    # 1D 格子の従来 JSON（shape なし）はそのまま受け付ける。
     request = _request(
         layers=[
             {"name": "air", "thicknessNm": 0, "n": 1.0},

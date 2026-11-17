@@ -17,16 +17,13 @@ import { cn } from "@/lib/utils";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** 計算の履歴（計算するたびに自動で保存される結果）の一覧・詳細・削除。 */
 export function ResultHistory() {
   const [results, setResults] = useState<ResultSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  // 読み直すたびに増やして、下の effect で一覧を取り直す。
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    // 開発時の StrictMode で 2 回走っても、片付け済みの 1 回目の結果は捨てる。
     let active = true;
     listResults()
       .then((list) => active && setResults(list))

@@ -19,10 +19,6 @@ jobs:
           enable-cache: true
           cache-dependency-glob: backend/uv.lock
 
-      # S4 は vendor/S4 からビルドする C++ 拡張で、Linux では openblas を要求し
-      # ビルドも重い。dependencies.py が S4 の import を関数内に閉じ込めているため、
-      # solver グループを除いても lint と型チェックは完走する。
-      #
       # 注意: uv run は既定で「既定グループでの再同期」を行うため、素の uv run では
       # ここで S4 がビルドされてしまう。各コマンドにも --no-group solver が必要。
       - name: Install dependencies (S4 を除く)
@@ -37,7 +33,6 @@ jobs:
       - name: pyright
         run: uv run --no-group solver pyright
 
-      # CI では S4 をビルドしないので、S4 を使うテストは自動でスキップされる。
       - name: pytest
         run: uv run --no-group solver pytest
 
@@ -68,6 +63,5 @@ jobs:
       - name: next build
         run: npm run build
         env:
-          # ビルドが通るかだけを見るので、実在しない値でよい
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_dummy

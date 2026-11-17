@@ -24,11 +24,6 @@ type Props = {
   onChange: (patch: Partial<Value>) => void;
 };
 
-/**
- * 層・基板の光学定数の入力。既定は n, k を打つだけで、登録した材料は横から選ぶ。
- * 材料を選ぶと n, k の欄が材料名に変わり、× で n, k に戻る（n, k の値は残してあるので復元される）。
- * 親のグリッドの 1 行を占める。
- */
 export function OpticsFields({ value, onChange }: Props) {
   const { materials, loading, loadError, reload } = useMaterials();
 
@@ -39,7 +34,6 @@ export function OpticsFields({ value, onChange }: Props) {
   const choose = (id: string) => {
     const material = materials.find((m) => m.id === id);
     if (!material) return;
-    // 層名は材料名にそろえ、元の名前は外したときに戻せるよう覚えておく。
     onChange({ materialId: material.id, name: material.name, nameBeforeMaterial: value.name });
   };
 
@@ -60,7 +54,6 @@ export function OpticsFields({ value, onChange }: Props) {
           <Link href="/materials">材料を登録</Link>
         </Button>
       ) : (
-        // 選ぶための入口なので値は持たない（選んだ瞬間に材料表示へ切り替わる）。
         <Select value="" onValueChange={choose} disabled={loading}>
           <SelectTrigger aria-label="登録した材料から選ぶ">
             <SelectValue placeholder="材料を選ぶ" />
@@ -81,14 +74,11 @@ export function OpticsFields({ value, onChange }: Props) {
 function SelectedMaterial({ value, onChange }: Props) {
   const { materials, loading, loadError, reload } = useMaterials();
   const material = materials.find((m) => m.id === value.materialId);
-  // 選んでいた材料が材料ページで削除された。一覧を読めていないときは判断できないので含めない。
   const missing = !loading && !loadError && !material;
 
   const clear = () =>
     onChange({
       materialId: null,
-      // 材料を選んだあとに名前を変えていなければ、選ぶ前の名前に戻す。
-      // 削除済みだと材料名と比べられないので、そのときは選ぶ前の名前に戻す。
       name:
         value.nameBeforeMaterial !== undefined && (missing || value.name === material?.name)
           ? value.nameBeforeMaterial
@@ -110,7 +100,6 @@ function SelectedMaterial({ value, onChange }: Props) {
               (missing ? "削除された材料" : loadError ? "材料一覧を読み込めません" : "読み込み中…")}
           </span>
           {loadError ? (
-            // 材料はまだあるかもしれないので、外させずに読み直してもらう。
             <Button
               type="button"
               variant="ghost"

@@ -1,5 +1,3 @@
-"""FastAPI アプリケーションの組み立て。"""
-
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -26,20 +24,14 @@ from s4web.presentation.auth import current_user, ensure_configured
 from s4web.presentation.logging_setup import RequestLogMiddleware, configure_logging
 
 # 開発時だけ backend/.env を読む。探索に任せると起動方法で起点が変わるため、パスを明示する。
-# ファイルがなければ何もせず、既に設定済みの環境変数（Cloud Run など）も上書きしない。
 load_dotenv(Path(__file__).resolve().parents[3] / ".env")
 
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    # 設定漏れや S4 の読み込み失敗を、最初のリクエスト(500)ではなくサーバー起動時に検出する。
-    # Cloud Run では起動に失敗した新リビジョンに切り替わらず、旧リビジョンが動き続ける。
-    # create_app() ではなくここで確かめるのは、openapi.json の書き出しやテストのように
-    # サーバーを起動しない用途を環境変数なしで動かせるようにするため。
     ensure_configured()
     ensure_database_configured()
     ensure_firestore_configured()
-    # S4 は get_solver() で初めて import されるため、壊れていても起動自体は成功してしまう。
     ensure_solver_available()
     yield
 
@@ -49,7 +41,6 @@ def create_app() -> FastAPI:
     app = FastAPI(title="S4 RCWA Simulator API", version="0.1.0", lifespan=_lifespan)
     app.add_middleware(RequestLogMiddleware)
 
-    # 開発時の保険。本番は Next.js の rewrites でプロキシし CORS 不要にする想定。
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000"],
@@ -57,15 +48,12 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # /api 配下はすべてログイン必須。health だけは認証を付けずに組み込み、公開のままにする。
     app.include_router(simulation_router, prefix="/api", dependencies=[Depends(current_user)])
     app.include_router(me_router, prefix="/api", dependencies=[Depends(current_user)])
     app.include_router(materials_router, prefix="/api", dependencies=[Depends(current_user)])
     app.include_router(results_router, prefix="/api", dependencies=[Depends(current_user)])
     app.include_router(health_router, prefix="/api")
 
-    # S4WEB_STATIC_DIR にフロントのビルド成果物があれば配信する(本番コンテナ用)。
-    # /api/* のルートが優先され、それ以外のパスが静的ファイルに割り当てられる。
     static_dir = os.environ.get("S4WEB_STATIC_DIR")
     if static_dir and Path(static_dir).is_dir():
         app.mount("/", StaticFiles(directory=static_dir, html=True), name="frontend")

@@ -1,9 +1,3 @@
-"""起動時の確認。S4 を読み込めない・正しく解けないときは起動に失敗することを確かめる。
-
-S4 が無い場合は sys.modules を差し替えて再現するので、S4 が入っていない環境（CI）でも動く。
-実際に解く確認が要るテストは、S4 が無ければスキップする。
-"""
-
 import asyncio
 import sys
 
@@ -16,7 +10,6 @@ from s4web.presentation.app import create_app
 
 @pytest.fixture
 def configured_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    # 起動時の確認は値の有無だけを見るので、ダミーで足りる。
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("DATABASE_URL", "postgresql://dummy")
     monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "dummy")

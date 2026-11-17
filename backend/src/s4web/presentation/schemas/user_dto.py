@@ -1,5 +1,3 @@
-"""ログイン中ユーザーの DTO。"""
-
 from pydantic import BaseModel
 
 

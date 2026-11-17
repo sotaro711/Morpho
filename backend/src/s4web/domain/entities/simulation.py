@@ -1,5 +1,3 @@
-"""シミュレーション条件と結果スペクトルのエンティティ。"""
-
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -16,51 +14,17 @@ class Polarization(StrEnum):
 
 
 class DiffractionMode(StrEnum):
-    """反射光を回折次数で分けたときの見方。
-
-    面内周期構造では反射光が回折次数 m = 0, ±1, ±2, … の方向に分かれる。
-    ZEROTH は m = 0（正反射方向）だけ、NON_ZEROTH は m ≠ 0 の合計（正反射以外の
-    方向へ散った回折光）、TOTAL は全次数の合計（反射側に戻った総エネルギー）。
-    次数ごとのパワーは別方向へ出る光なので、こちらは強度の単純和が成り立つ
-    （TOTAL = ZEROTH + NON_ZEROTH）。平面多層膜には m ≠ 0 が存在しないので
-    NON_ZEROTH は 0、TOTAL は ZEROTH に一致する。
-    """
-
     ZEROTH = "zeroth"
     NON_ZEROTH = "non_zeroth"
     TOTAL = "total"
 
 
-# 基底数の上限。これ以上は計算時間（基底数のほぼ 3 乗）が実用範囲を超えるため受け付けない。
-# x, y の 2 方向に周期を持つ構造では ±7 次（15*15 = 225。球配列の検証で基底 81〜169 が
-# 必要だった）、1D 格子では GUI の最大回折次数 ±30（2*30+1 = 61）に対応する。
 NUM_BASIS_LIMIT = 225
 NUM_BASIS_LIMIT_1D = 61
 
 
 @dataclass(frozen=True)
 class SimulationCondition:
-    """多層膜シミュレーションの完全な指定。
-
-    波長はすべて nm。層は入射側から基板側の順。
-    ここを通過したインスタンスは「物理的に計算可能」であることが保証される。
-
-    面内パターン（Layer.regions）を持つ層がある場合は面内周期 period_nm が
-    必須になる。平面多層膜（パターンなし）では period_nm は不要で、
-    num_basis=1 が厳密（回折は 0 次のみ）。
-
-    period_y_nm を与えると x, y の 2 方向に周期を持つ構造（球や柱の配列）になる。
-    円・矩形の領域（CircleRegion / RectRegion）を持つ層にはこれが必須。無ければ
-    x 方向だけの 1D 格子で、y 方向には一様（従来どおり）。
-
-    azimuth_deg は入射面の方位角（x 軸から測り、0 なら xz 面、90 なら yz 面に
-    入射）。2 方向周期の構造でだけ指定でき、1D 格子は xz 面（0）に固定する。
-
-    波長は通常 [wl_min_nm, wl_max_nm] の等間隔 wl_points 点。等間隔で表せない
-    サンプル（参照データとの突き合わせなど）は explicit_wavelengths_nm で
-    明示リストを与える。指定時は wl_min/wl_max/wl_points を使わない。
-    """
-
     wl_min_nm: float
     wl_max_nm: float
     wl_points: int
@@ -121,7 +85,6 @@ class SimulationCondition:
         self._validate_dispersion_ranges()
 
     def _validate_regions(self) -> None:
-        # 領域が単位胞 [0, period_nm) × [0, period_y_nm) に収まることを確かめる。
         patterned = [layer for layer in self.layers if layer.is_patterned]
         if not patterned:
             return
@@ -158,7 +121,6 @@ class SimulationCondition:
                     )
 
     def _validate_dispersion_ranges(self) -> None:
-        # 分散データは測定範囲の外へ外挿しない。範囲外の波長を含む条件はここで拒否する。
         wls = self.wavelengths_nm()
         lo, hi = min(wls), max(wls)
         for layer, material in self._layer_materials():
@@ -172,7 +134,6 @@ class SimulationCondition:
                 )
 
     def _layer_materials(self) -> list[tuple[Layer, OpticalMaterial]]:
-        """全層の背景材料と領域の材料を、属する層と組にして並べる。"""
         return [
             (layer, material)
             for layer in self.layers
@@ -181,27 +142,19 @@ class SimulationCondition:
 
     @property
     def is_dispersive(self) -> bool:
-        """波長分散する材料を含むかどうか。"""
         return any(
             material.wavelength_range_nm is not None for _, material in self._layer_materials()
         )
 
     @property
     def is_patterned(self) -> bool:
-        """面内パターンを持つ層を含むかどうか。"""
         return any(layer.is_patterned for layer in self.layers)
 
     @property
     def is_biperiodic(self) -> bool:
-        """x, y の 2 方向に周期を持つ構造かどうか。"""
         return self.period_y_nm is not None
 
     def wavelengths_nm(self) -> list[float]:
-        """計算する波長のリスト。
-
-        explicit_wavelengths_nm があればそれをそのまま、無ければ
-        [wl_min, wl_max] を wl_points 点で等間隔サンプルして返す。
-        """
         if self.explicit_wavelengths_nm is not None:
             return list(self.explicit_wavelengths_nm)
         if self.wl_points == 1:
@@ -214,14 +167,6 @@ class SimulationCondition:
 
 @dataclass(frozen=True)
 class Spectrum:
-    """反射率 / 透過率スペクトル。各配列は波長ごとに 1 値。
-
-    reflectance・transmittance は回折 0 次（正反射・直進透過）の成分。面内パターンを
-    持つ構造では高次回折光は含まない（観測者が正反射方向で見る量に合わせる）。
-    reflectance_total は全次数の合計。平面多層膜では回折が無いので両者は一致する。
-    0 次以外（高次回折光の合計）は差分として reflectance_for で取り出す。
-    """
-
     wavelengths_nm: tuple[float, ...]
     reflectance: tuple[float, ...]
     transmittance: tuple[float, ...]
@@ -235,14 +180,12 @@ class Spectrum:
             raise ValueError("reflectance_total must have the same length as wavelengths")
 
     def reflectance_for(self, mode: DiffractionMode) -> tuple[float, ...]:
-        """指定した見方での反射率。全次数の情報が無いスペクトルで 0 次以外を求めると ValueError。"""
         if mode is DiffractionMode.ZEROTH:
             return self.reflectance
         if self.reflectance_total is None:
             raise ValueError("spectrum has no total reflectance")
         if mode is DiffractionMode.TOTAL:
             return self.reflectance_total
-        # 0 次以外 = 全次数 − 0 次。数値誤差で僅かに負になり得るので 0 で切る。
         return tuple(
             max(total - zeroth, 0.0)
             for total, zeroth in zip(self.reflectance_total, self.reflectance, strict=True)
@@ -251,13 +194,6 @@ class Spectrum:
 
 @dataclass(frozen=True)
 class SimulationOutcome:
-    """シミュレーション結果一式（スペクトル + 反射色）。
-
-    reflected_color は 0 次（正反射）の色。non_zeroth_color / total_color は
-    0 次以外 / 全次数の反射スペクトルから求めた色で、スペクトルが全次数の
-    情報を持たない場合は None。
-    """
-
     spectrum: Spectrum
     reflected_color: ColorResult
     non_zeroth_color: ColorResult | None = None
@@ -266,13 +202,6 @@ class SimulationOutcome:
 
 @dataclass(frozen=True)
 class AngleSweepEntry:
-    """入射角スイープの 1 角度分の結果。
-
-    reflected_color は色変換を省略した場合（波長間隔が色変換に適さない粗い
-    掃引など）に None になる。non_zeroth_color / total_color も同様で、さらに
-    スペクトルが全次数の情報を持たない場合にも None。
-    """
-
     theta_deg: float
     spectrum: Spectrum
     reflected_color: ColorResult | None

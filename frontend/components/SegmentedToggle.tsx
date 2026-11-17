@@ -2,14 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 
-/** 選択肢を横に並べたボタンから 1 つを選ぶ切替。 */
 export function SegmentedToggle<T extends string | number>({
   label,
   options,
   value,
   onChange,
 }: {
-  /** 読み上げ用の名前。 */
   label: string;
   options: readonly { value: T; label: string }[];
   value: T;

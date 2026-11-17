@@ -1,19 +1,3 @@
-/**
- * 段付き周期構造のモデル。
- *
- * 「全ブロック（カラム）は同じ層スタックを共有し、基板上げの有無だけが異なる」
- * という組み立て規約をこのモジュールに閉じ込める（stack.ts の段付き版）。
- * ブロックが空なら平面多層膜（従来どおり）で、モード切替は存在しない —
- * 設定の結果としてどちらかになる。
- *
- * バックエンド検証スクリプト backend/scripts/stepped_grating_validation.py の
- * build_sim() と同じ水平スライス法の TypeScript 移植:
- * 全カラムの層境界（基板上げとペア境界の互い違い）を集めて水平スライスに分割し、
- * 各スライスを「矩形領域の並び」として表す。
- *
- * React に依存しない純粋なモジュールなので "use client" は付けない。
- */
-
 import type {
   EditableLayer,
   LayerDTO,
@@ -22,46 +6,33 @@ import type {
 import type { Medium, Optics, Settings } from "@/lib/stack";
 import { apiOptics, toSimulationRequest } from "@/lib/stack";
 
-/** 段差の 1 ブロック（カラム）。id は React のキー用。 */
 export type StepBlock = { id: string; widthNm: number; raised: boolean };
 
-/** 段差の設定。blocks が空 = 段差なし = 平面多層膜。 */
 export type SteppedConfig = {
   raiseNm: number;
   blocks: StepBlock[];
-  /** 最大回折次数 M（m = -M〜+M を計算に含める）。基底数は 2M+1。 */
   maxOrder: number;
 };
 
-/**
- * 最大回折次数の既定値（基底数 23）と UI で許す上限。
- * M=11 は参照構造(900/300 ブロック・TiO2/SiO2 7 ペア)で M=30 との差が
- * 全点 ≤0.03 に収まることを確認済み。計算量は基底数のほぼ 3 乗なので
- * M=30 比で約 18 倍速い。より細かいパターンで収束が怪しいときは UI で上げる。
- */
 export const DEFAULT_MAX_ORDER = 11;
 export const MAX_ORDER_LIMIT = 30;
 
 export const DEFAULT_STEPPED: SteppedConfig = {
-  raiseNm: 235, // 研究の設計値 λ0/2（λ0 = 470nm）
+  raiseNm: 235,
   blocks: [],
   maxOrder: DEFAULT_MAX_ORDER,
 };
 
-/** 段差が設定されているか（= 段付き周期構造として計算するか）。 */
 export function isStepped(config: SteppedConfig): boolean {
   return config.blocks.some((b) => b.widthNm > 0);
 }
 
-/** 単位胞の周期（全ブロック幅の合計）。 */
 export function periodNm(config: SteppedConfig): number {
   return config.blocks.reduce((sum, b) => sum + b.widthNm, 0);
 }
 
-// 入射媒質は空気に固定（stack.ts の規約と同じ。スライスの背景材料にも使う）。
 const AIR: Medium = { name: "空気", n: 1.0, k: 0 };
 
-/** 1 カラムを構成するスラブ（下 = 基板側 → 上 = 入射側の順）。 */
 export type Slab = { name: string; thicknessNm: number } & Optics;
 
 export function columnProfile(
@@ -72,10 +43,8 @@ export function columnProfile(
 ): Slab[] {
   const prof: Slab[] = [];
   if (raised) {
-    // 基板上げ = 基板材料の台座。名前も基板と揃え、断面図で同じ色になるようにする
     prof.push({ ...substrate, thicknessNm: raiseNm });
   }
-  // films は入射側（上）→ 基板側（下）の順なので、下から積むために反転する
   for (const l of [...films].reverse()) {
     prof.push({
       name: l.name,
@@ -88,7 +57,6 @@ export function columnProfile(
   return prof;
 }
 
-/** プロファイル中の高さ z の材料。スタックの上（空気）なら null。 */
 export function materialAt(prof: Slab[], zNm: number): Slab | null {
   let z0 = 0;
   for (const slab of prof) {
@@ -98,10 +66,6 @@ export function materialAt(prof: Slab[], zNm: number): Slab | null {
   return null;
 }
 
-/**
- * 現在の入力から API リクエストを組み立てる。
- * 段差が無ければ平面版（toSimulationRequest）にそのまま委譲する。
- */
 export function toSteppedSimulationRequest(
   settings: Settings,
   films: EditableLayer[],
@@ -112,7 +76,6 @@ export function toSteppedSimulationRequest(
     return toSimulationRequest(settings, films, substrate);
   }
 
-  // カラム（x 方向の区間）と、その z プロファイル
   const blocks = config.blocks.filter((b) => b.widthNm > 0);
   const columns: { xNm: number; widthNm: number; prof: Slab[] }[] = [];
   let x = 0;
@@ -126,7 +89,6 @@ export function toSteppedSimulationRequest(
   }
   const period = x;
 
-  // 全カラムの層境界を集めて z 方向のスライスを作る（浮動小数の同値判定は丸めで）
   const breaks = new Set<number>([0]);
   for (const col of columns) {
     let z = 0;
@@ -137,7 +99,6 @@ export function toSteppedSimulationRequest(
   }
   const zs = [...breaks].sort((a, b) => a - b);
 
-  // 入射側（上）の半無限空気層 → スライスを上から順に → 基板の半無限層
   const layers: LayerDTO[] = [
     { name: AIR.name, thicknessNm: 0, n: AIR.n, k: AIR.k, regions: [] },
   ];
@@ -173,16 +134,13 @@ export function toSteppedSimulationRequest(
 
   return {
     ...settings,
-    // thetaDeg はスキーマ上必須だが、sweep API は thetaDegs のみ参照するため 0 固定
     thetaDeg: 0,
-    // 基底数は最大回折次数から決まる（m = -M〜+M の 2M+1 本）
     numBasis: 2 * config.maxOrder + 1,
     periodNm: period,
     layers,
   };
 }
 
-/** 表示用: 1 カラム分の描画情報。slabs は下から順で、zNm はカラム内の下端高さ。 */
 export type StructureColumn = {
   xNm: number;
   widthNm: number;
@@ -190,10 +148,6 @@ export type StructureColumn = {
   slabs: (Slab & { zNm: number })[];
 };
 
-/**
- * 断面図用のカラム分解。計算用スライサーと同じ columnProfile を源にするので、
- * 表示される構造と計算される構造は常に一致する。ブロックが空なら空配列。
- */
 export function structureColumns(
   films: EditableLayer[],
   substrate: Medium,

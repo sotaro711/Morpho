@@ -12,14 +12,6 @@ type Props = {
   onChange: (v: SteppedConfig) => void;
 };
 
-/**
- * 段差(基板上げ)のビジュアルエディタ。
- *
- * ブロックを断面図そのままの「箱」として横に並べる。箱の幅は実際の幅に比例し、
- * 「上げ」の箱は上にずれて表示される — 見たままが計算される構造になる。
- * 箱をクリックすると上げ/平が切り替わり、ホバーで削除ボタンが出る。
- * ブロックが空の間は平面多層膜として計算される。
- */
 export function StepEditor({ value, onChange }: Props) {
   const patch = (p: Partial<SteppedConfig>) => onChange({ ...value, ...p });
 
@@ -32,7 +24,6 @@ export function StepEditor({ value, onChange }: Props) {
     patch({
       blocks: [
         ...value.blocks,
-        // 交互に「上げ」を初期値にする(段付き構造の典型形に寄せる)
         {
           id: crypto.randomUUID(),
           widthNm: 300,
@@ -112,8 +103,6 @@ export function StepEditor({ value, onChange }: Props) {
               type="button"
               onClick={() => removeBlock(i)}
               aria-label={`ブロック${i + 1}を削除`}
-              // 箱の上端に少し重ねて置く（離すとホバーが途切れて押せなくなるため）。
-              // 上げブロックは箱が 20px 上にずれるので × も同じだけ上げる。
               className={`absolute -right-1.5 z-10 hidden h-5 w-5 items-center justify-center rounded-full border bg-background text-xs leading-none text-muted-foreground shadow-sm group-hover:flex ${
                 b.raised ? "-top-7" : "-top-2"
               }`}

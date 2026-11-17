@@ -8,15 +8,12 @@ import { supabase } from "@/lib/supabase";
 
 type AuthState = {
   session: Session | null;
-  /** 保存済みセッションとメール内リンクの確認が終わるまで true。ログイン画面のちらつき防止に使う。 */
   loading: boolean;
-  /** メール内リンクの検証に失敗したときの文言（期限切れなど）。 */
   linkError: string | null;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
 
-/** ログイン状態を購読し、子コンポーネントに配る。 */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +21,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     // 購読直後に INITIAL_SESSION が届くので、初回の確認もこの 1 本で済む。
-    // メール内リンクの検証中は、その結果が出るまで読み込み中のままにする。
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
       if (!emailLinkVerification) setLoading(false);

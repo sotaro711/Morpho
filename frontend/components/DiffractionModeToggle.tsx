@@ -3,10 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { DIFFRACTION_MODES, type DiffractionMode } from "@/lib/diffraction";
 
-/**
- * 表示する回折次数の見方（0次のみ / 0次以外 / 全次数）の切替。
- * 再計算は不要で、受け取り済みの結果のどの系列を描くかだけを切り替える。
- */
 export function DiffractionModeToggle({
   value,
   onChange,

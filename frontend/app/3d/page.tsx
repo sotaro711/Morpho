@@ -44,7 +44,6 @@ import {
 } from "@/lib/lattice3d";
 import type { Medium, Settings } from "@/lib/stack";
 
-// Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const SolidView = dynamic(
   () => import("@/components/StructureView").then((m) => m.SolidView),
   { ssr: false },
@@ -69,10 +68,8 @@ const AngleSpectraChart = dynamic(
   },
 );
 
-// 見た目の色・角度別スペクトル用: 0/30/60°、波長は 10nm 間隔(色変換できる間隔)。
 const COLOR_THETAS = [0, 30, 60];
 const COLOR_SWEEP_WL = { wlMin: 380, wlMax: 780, wlPoints: 41 };
-// 角度スイープチャート用: 2 次元ページと同じ -80〜80° を 10° 刻み、代表 5 波長。
 const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
 const ANGLE_SWEEP_WL = { wavelengthsNm: [400, 470, 540, 600, 700] };
 
@@ -82,7 +79,6 @@ const FIGURES: { value: StructureFigure; label: string }[] = [
   { value: "section", label: "断面図" },
   { value: "top", label: "上面図" },
 ];
-// 3×3 は隣の形との距離を見るための表示。
 const REPEATS: { value: number; label: string }[] = [
   { value: 1, label: "1×1" },
   { value: 3, label: "3×3" },
@@ -134,7 +130,6 @@ export default function Lattice3DPage() {
 
   const runSimulation = async () => {
     const base = buildRequest();
-    // 2 次元ページと同じく直列に実行し、両方そろったら履歴に保存する。
     anglesSweep.clear();
     setSaveError(null);
     const colors = await colorsSweep.run({
@@ -157,7 +152,6 @@ export default function Lattice3DPage() {
     }
   };
 
-  // 入射面（φ=0 なら xz 面、90 なら yz 面）。断面図もこの面で切る。
   const axis: SectionAxis = settings.phiDeg === 90 ? "y" : "x";
   const periodNm =
     template === "sphere" ? sim.sphere.periodNm : sim.pillar.periodNm;
@@ -168,7 +162,6 @@ export default function Lattice3DPage() {
     template === "sphere"
       ? sphereTopShapes(sim.sphere)
       : pillarTopShapes(sim.pillar, sim.pillarSubstrate);
-  // 形が断面の横軸上で占める範囲（隣との隙間の寸法用）。
   const sectionExtent: [number, number] | null =
     topShapes.length === 0
       ? null
@@ -190,7 +183,6 @@ export default function Lattice3DPage() {
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-6">
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(420px,460px)_1fr]">
-        {/* 左：入力 */}
         <div className="grid min-w-0 gap-6">
           <Card>
             <CardHeader>
@@ -315,7 +307,6 @@ export default function Lattice3DPage() {
           </div>
         </div>
 
-        {/* 右：構造の断面図（常時）とスペクトル（計算後） */}
         <div className="grid min-w-0 gap-6 lg:sticky lg:top-6 lg:self-start">
           <Card>
             <CardHeader>
@@ -621,7 +612,6 @@ function PillarForm({
   );
 }
 
-/** 名前 + 光学定数（材料選択つき）。基板や球の材料に使う。 */
 function MediumFields({
   label,
   value,

@@ -59,8 +59,6 @@ def test_summary_lists_only_entries_with_colors() -> None:
 
 
 def test_referenced_material_ids_matches_simulation_request() -> None:
-    # domain は presentation に依存できないので同じ処理を 2 か所に持っている。食い違うと
-    # 計算に使った材料が保存されないので、同じ request で結果がそろうことを確かめる。
     id_a = "0f6d1a4e-6d8e-4d1c-9a3b-2c5f7e8a9b01"
     id_b = "0f6d1a4e-6d8e-4d1c-9a3b-2c5f7e8a9b02"
     id_c = "0f6d1a4e-6d8e-4d1c-9a3b-2c5f7e8a9b03"

@@ -11,8 +11,6 @@ const nextConfig: NextConfig = {
         trailingSlash: true,
       }
     : {
-        // フロントの /api/* を FastAPI バックエンド (:8000) へプロキシする。
-        // 同一オリジンになるため CORS 設定が不要になる。
         async rewrites() {
           return [
             {

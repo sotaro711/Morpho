@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/sidebar";
 import { supabase } from "@/lib/supabase";
 
-/** 計算ページ。構造の次元で分ける（サイドバーでは「計算」の下にまとめる）。 */
 const CALC_PAGES = [
   { href: "/", label: "2次元", title: "計算 — 2次元（多層膜・段差）" },
   {
@@ -44,13 +43,10 @@ const OTHER_PAGES = [
   { href: "/history", label: "履歴", icon: History },
 ] as const;
 
-/** 全ページ。ヘッダのタイトル表示に使う。 */
 export const NAV_ITEMS = [...CALC_PAGES, ...OTHER_PAGES] as const;
 
-// Vercel のサイドバーに合わせ、項目を 36px の高さで少し間を空けて並べる。
 const ITEM_CLASS = "h-9 gap-3 px-3";
 
-/** 静的書き出しでは末尾に / が付くので、比較の前にそろえる。 */
 export function normalizePath(pathname: string): string {
   return pathname.replace(/\/+$/, "") || "/";
 }
@@ -81,7 +77,6 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-0.5">
-              {/* 計算: 2次元 / 3次元 を子に持つ折りたたみグループ */}
               <Collapsible.Root
                 defaultOpen
                 className="group/collapsible"

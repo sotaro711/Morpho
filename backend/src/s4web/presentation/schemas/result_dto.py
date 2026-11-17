@@ -1,9 +1,3 @@
-"""保存した計算結果 API の入出力 DTO。
-
-条件と結果は計算 API の DTO で検証してから保存する。保存先は JSON をそのまま持つので、
-読み出すときも同じ DTO に通せば計算 API のレスポンスと同じ形で返せる。
-"""
-
 from __future__ import annotations
 
 from datetime import datetime

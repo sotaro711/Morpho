@@ -11,13 +11,6 @@ function withToken(request: Request, token: string | undefined): Request {
   return request;
 }
 
-/**
- * すべての API 呼び出しにログイン中のアクセストークンを付ける。
- *
- * 401 が返ったら、スリープ復帰などで期限が切れただけの可能性があるので、
- * 一度だけトークンを更新して送り直す。それでも 401 ならログアウトし、
- * AuthGate がログイン画面に切り替える。
- */
 export const authMiddleware: Middleware = {
   async onRequest({ request }) {
     const { data } = await supabase.auth.getSession();
