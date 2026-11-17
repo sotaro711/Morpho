@@ -104,4 +104,8 @@ jobs:
 
       # API を変えたのに再生成をコミットし忘れると、ここで差分が出て落ちる。
       - name: 生成物がコミット済みと一致するか
-        run: git diff --exit-code -- openapi.json frontend/lib/api/schema.d.ts
+        run: |
+          git diff --exit-code -- openapi.json frontend/lib/api/schema.d.ts || {
+            echo "::error::API の生成物が古い。backend で 'uv run --no-group solver python scripts/export_openapi.py'、frontend で 'npm run gen:api' を実行してコミットする"
+            exit 1
+          }
