@@ -8,6 +8,7 @@ file=$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("tool_input",
 root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}"
 
 case "$file" in
+  "$root"/backend/vendor/* | "$root"/backend/.venv/* | "$root"/frontend/node_modules/*) ;;
   "$root"/backend/*.py)
     cd "$root/backend" || exit 0
     # --no-sync: 既定の再同期で S4（C++ 拡張）のビルドが走るのを避ける。
