@@ -37,6 +37,9 @@ jobs:
       - name: pyright
         run: uv run --no-group solver pyright
 
+      - name: lint-imports (層の依存方向)
+        run: uv run --no-group solver lint-imports
+
       # CI では S4 をビルドしないので、S4 を使うテストは自動でスキップされる。
       - name: pytest
         run: uv run --no-group solver pytest

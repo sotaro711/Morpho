@@ -25,6 +25,7 @@ dev = [
     "ruff>=0.8",
     "pyright>=1.1.390",
     "pytest>=9.1.1",
+    "import-linter>=2.16",
 ]
 # S4 は同梱した修正版ソース (vendor/S4) からビルドする。
 solver = [
@@ -63,3 +64,18 @@ include = ["src"]
 typeCheckingMode = "standard"
 venvPath = "."
 venv = ".venv"
+
+# 層の依存は外側から内側にだけ向ける（presentation → application → domain、infrastructure → domain）。
+[tool.importlinter]
+root_package = "s4web"
+
+[[tool.importlinter.contracts]]
+name = "クリーンアーキテクチャの層"
+type = "layers"
+containers = ["s4web"]
+# 「|」で並べた層は互いに import しない（usecase は port 経由で infrastructure を使う）。
+layers = [
+    "presentation",
+    "application | infrastructure",
+    "domain",
+]
