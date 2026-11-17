@@ -82,7 +82,7 @@ def test_absorbing_film_loses_energy(solver: S4Solver, polarization: Polarizatio
     spectrum = solver.solve(_condition(layers, 30.0, polarization))
     for r, t in zip(spectrum.reflectance, spectrum.transmittance, strict=True):
         assert 0.0 <= r and 0.0 <= t
-        assert r + t < 1.0
+        assert 1.0 - r - t > 0.1
 
 
 @pytest.mark.parametrize("polarization", POLARIZATIONS)
