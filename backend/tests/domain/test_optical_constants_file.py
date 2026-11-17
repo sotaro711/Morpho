@@ -8,7 +8,6 @@ FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 
 def test_reads_a_completeease_export_as_is() -> None:
-    # 見出し 2 行・タブ区切り・行末の余分なタブ・CRLF・末尾の空行をそのまま読める。
     material = parse_optical_constants((FIXTURES / "completeease_cauchy.txt").read_text())
     assert len(material.points) == 61
     assert material.wavelength_range_nm == (300, 900)

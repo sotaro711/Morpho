@@ -19,7 +19,6 @@ type View =
   | { name: "signUp" }
   | { name: "sent"; email: string };
 
-/** 未ログイン時に計算画面の代わりに出す画面。枠と表示の切り替えだけを持つ。 */
 export function LoginScreen() {
   const [view, setView] = useState<View>({ name: "signIn" });
   const { linkError } = useAuth();

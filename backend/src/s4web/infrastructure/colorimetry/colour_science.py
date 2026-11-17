@@ -1,9 +1,3 @@
-"""colour-science を用いた ColorimetryPort の実装（infrastructure 層）。
-
-参照プログラム（D65・CIE1931 2°・sRGB）と同じ手順で
-反射スペクトルを sRGB 色に変換する。colour-science への依存はここだけ。
-"""
-
 from collections.abc import Sequence
 
 import colour
@@ -25,7 +19,6 @@ class ColourScienceColorimetry(ColorimetryPort):
         reflectance: Sequence[float],
     ) -> ColorResult:
         values = np.asarray(reflectance, dtype=float)
-        # NaN を 0 埋めし、0..1 にクリップ（Rayleigh 点の欠損なども吸収）。
         values = np.nan_to_num(values, nan=0.0)
         values = np.clip(values, 0.0, 1.0)
 

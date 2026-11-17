@@ -1,10 +1,3 @@
-"""Firestore の users/{owner}/results/{id} を使う ResultRepository の実装。
-
-所有者ごとのサブコレクションに置くので、他人の結果はパスの時点で届かない。
-Cloud Run ではサービスアカウントの権限で、ローカルでは FIRESTORE_EMULATOR_HOST の
-エミュレータか gcloud の Application Default Credentials で接続する。
-"""
-
 import logging
 import os
 import time
@@ -27,14 +20,12 @@ MAX_DOCUMENT_BYTES = 1_048_576
 
 
 def ensure_firestore_configured() -> None:
-    """GOOGLE_CLOUD_PROJECT が設定されているかを確かめる。未設定なら RuntimeError。"""
     if not os.environ.get("GOOGLE_CLOUD_PROJECT"):
         raise RuntimeError("GOOGLE_CLOUD_PROJECT が設定されていません")
 
 
 @cache
 def client() -> firestore.Client:
-    # クライアントは接続を内部で使い回すので、リクエストごとに作らず 1 つを共有する。
     ensure_firestore_configured()
     return firestore.Client(project=os.environ["GOOGLE_CLOUD_PROJECT"])
 
@@ -47,7 +38,6 @@ class FirestoreResultRepository(ResultRepository):
         return self._db.collection("users", owner_id, "results")
 
     def list_for(self, owner_id: str, limit: int) -> tuple[ResultSummary, ...]:
-        # 一覧にスペクトルや材料の表は要らないので、日時と色だけを読む。
         query = (
             self._results(owner_id)
             .select(["createdAt", "summaryColors"])
@@ -131,11 +121,7 @@ def _to_entity(result_id: str, data: Mapping[str, Any]) -> SavedResult:
 
 
 def document_size(path: str, data: Mapping[str, Any]) -> int:
-    """Firestore の計算方法でのドキュメントのサイズ（バイト）。
-
-    https://firebase.google.com/docs/firestore/storage-size
-    数値は 8 バイトなので、同じ中身でも JSON の文字数よりかなり小さくなる。
-    """
+    """https://firebase.google.com/docs/firestore/storage-size"""
     name = sum(_string_size(segment) for segment in path.split("/")) + 16
     return name + _map_size(data) + 32
 
@@ -157,5 +143,4 @@ def _value_size(value: Any) -> int:
         return sum(_value_size(v) for v in value)
     if value is None or isinstance(value, bool):
         return 1
-    # int / float / datetime
     return 8

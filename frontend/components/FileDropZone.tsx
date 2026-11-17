@@ -10,16 +10,10 @@ type Props = {
   file: File | null;
   onChange: (file: File | null) => void;
   accept: string;
-  /** 枠の中に小さく出す補足（受け付ける形式など）。 */
   hint?: string;
   label: string;
 };
 
-/**
- * ファイルをドラッグして置くか、クリックして選ぶ枠。選んだ後はファイル名と × を出す。
- * ブラウザ標準のファイル欄（「選択されていません」）は見づらいので、input は枠の中に隠す。
- * ドロップでは accept が効かないので、形式の検証は読み取る側に任せる。
- */
 export function FileDropZone({ file, onChange, accept, hint, label }: Props) {
   const [dragging, setDragging] = useState(false);
 

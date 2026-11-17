@@ -1,8 +1,3 @@
-"""リクエストの開始・終了ログと、Cloud Run 向けの JSON 形式の確認。
-
-httpx を入れていないので TestClient は使わず、ASGI アプリを直接呼ぶ（test_health と同じ）。
-"""
-
 import json
 import logging
 
@@ -18,7 +13,6 @@ from s4web.presentation.logging_setup import (
 
 async def _call(path: str, headers: tuple[tuple[bytes, bytes], ...] = ()) -> None:
     async def app(scope, receive, send) -> None:
-        # 同期エンドポイントと同様にスレッドプールで出したログにも trace が付くことを確かめる。
         await anyio.to_thread.run_sync(logging.getLogger("s4web.test").info, "working")
         await send({"type": "http.response.start", "status": 200, "headers": []})
         await send({"type": "http.response.body", "body": b""})

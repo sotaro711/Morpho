@@ -15,7 +15,6 @@ type Props = {
   onSent: (email: string) => void;
 };
 
-/** メールアドレスでの新規登録。送信後は確認メールの案内に切り替わる。 */
 export function SignUpForm({ onSignIn, onSent }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,7 +35,6 @@ export function SignUpForm({ onSignIn, onSent }: Props) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      // メール内リンクの戻り先。開発は localhost、本番は Cloud Run に自動で分かれる。
       options: { emailRedirectTo: window.location.origin },
     });
     setPending(false);

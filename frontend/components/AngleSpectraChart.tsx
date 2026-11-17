@@ -8,17 +8,12 @@ import {
   type DiffractionMode,
 } from "@/lib/diffraction";
 
-/** 入射角ごとの線色(研究スライドの配色: 0° 黒 / 30° 橙 / 60° 緑)。 */
 function thetaColor(thetaDeg: number): string {
   if (thetaDeg < 15) return "#111111";
   if (thetaDeg < 45) return "#ea8c3c";
   return "#16a34a";
 }
 
-/**
- * 角度別スペクトルチャート(研究スライド下段の形式)。
- * 入射角ごとに 1 本の折れ線(x = 波長、y = 反射率)。
- */
 export default function AngleSpectraChart({
   sweep,
   mode = "zeroth",

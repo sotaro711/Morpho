@@ -19,7 +19,6 @@ export function LayerEditor({ layers, onChange }: Props) {
     onChange(layers.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
 
   const addLayer = () => {
-    // 積み上げ：新しい層をスタックの一番上（入射側寄り＝先頭）に追加する。
     const inserted: EditableLayer = {
       id: crypto.randomUUID(),
       name: `film${layers.length + 1}`,
@@ -34,8 +33,6 @@ export function LayerEditor({ layers, onChange }: Props) {
   const removeLayer = (i: number) =>
     onChange(layers.filter((_, idx) => idx !== i));
 
-  // 番号は基板側から数える（基板に接する膜が第1層、積み上げるほど大きい）。
-  // films は入射側→基板の順なので、末尾が第1層。
   const roleOf = (i: number) => `第${layers.length - i}層`;
 
   return (

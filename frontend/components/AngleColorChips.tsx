@@ -1,7 +1,6 @@
 import type { SweepResponse } from "@/lib/api/client";
 import { entryColor, type DiffractionMode } from "@/lib/diffraction";
 
-/** 入射角ごとの見た目の色チップ(研究スライド上段の形式)。 */
 export function AngleColorChips({
   sweep,
   mode,

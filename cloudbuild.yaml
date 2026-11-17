@@ -1,8 +1,4 @@
-# main へのマージで Cloud Build トリガーから実行される。
-# ビルドしたイメージを service.yaml に書き込み、Cloud Run の設定ごと宣言的に反映する。
-# 置換変数（_AR_HOSTNAME など）と、ビルドに埋め込む公開値（_NEXT_PUBLIC_*）はトリガー側で定義している。
 steps:
-  # Cloud Build は毎回まっさらな環境なので、ビルドキャッシュをレジストリの :buildcache に置いて持ち越す。
   # mode=max で中間ステージ（S4 をビルドする backend-build など）も保存する。最終イメージを
   # --cache-from に渡すだけでは、最終イメージに残らない中間ステージは毎回作り直しになる。
   # キャッシュの書き出しには docker-container ドライバのビルダーが要る。このドライバはイメージを
@@ -25,7 +21,6 @@ steps:
           --push \
           -f Dockerfile .
 
-  # service.yaml の image: IMAGE を今回のイメージに置き換えて反映する。
   # services update --image と違い、probe などの設定もこのファイルの内容に揃う。
   - id: Deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim

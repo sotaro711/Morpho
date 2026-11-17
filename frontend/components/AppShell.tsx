@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-/** ログイン後の画面の枠。左にページを切り替えるサイドバー、右に各ページ。 */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = normalizePath(usePathname());
   const page = NAV_ITEMS.find((item) => item.href === pathname);

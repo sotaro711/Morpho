@@ -1,8 +1,3 @@
-"""ユーザーが登録する材料（波長ごとの n, k の表）の API。
-
-他人の材料は、存在しないものと同じ 404 にする（存在の有無も分からないようにする）。
-"""
-
 from typing import Annotated
 from uuid import UUID
 
@@ -57,7 +52,6 @@ def get_material(material_id: UUID, user: User, repository: Repository) -> Mater
 def create_material(
     request: MaterialCreateRequest, user: User, repository: Repository
 ) -> MaterialDTO:
-    # ファイルの読み取り・名前・波長範囲の検証は domain が日本語の ValueError で返す。
     try:
         draft = MaterialDraft(request.name, parse_optical_constants(request.content))
     except ValueError as exc:

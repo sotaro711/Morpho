@@ -1,5 +1,3 @@
-"""RunAngleSweepUseCase。角度ごとに結果を積み、進捗をログに出すことを確かめる。"""
-
 import logging
 from collections.abc import Sequence
 

@@ -174,7 +174,6 @@ def test_dispersive_region_makes_the_condition_dispersive() -> None:
 
 
 def test_wavelengths_within_the_dispersion_data_are_accepted() -> None:
-    # 範囲の両端ちょうどは範囲内として扱う。
     _condition(Layer("film", 100, MEASURED), wl_min=400, wl_max=700)
 
 

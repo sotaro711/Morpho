@@ -1,8 +1,3 @@
-"""Supabase Auth が発行した JWT の検証。
-
-認証は presentation 層の関心事として閉じ込め、domain と application には持ち込まない。
-"""
-
 import os
 from dataclasses import dataclass
 from functools import lru_cache
@@ -19,14 +14,12 @@ _AUDIENCE = "authenticated"
 _bearer = HTTPBearer()
 
 
-# 検証後にユーザーへ返す情報
 @dataclass(frozen=True)
 class AuthenticatedUser:
     id: str
     email: str
 
 
-# 環境変数を読む
 def _supabase_url() -> str:
     url = os.environ.get("SUPABASE_URL")
     if not url:
@@ -35,7 +28,6 @@ def _supabase_url() -> str:
 
 
 def ensure_configured() -> None:
-    """必要な環境変数がそろっているかを確かめる。未設定なら RuntimeError。"""
     _supabase_url()
 
 
@@ -68,7 +60,6 @@ def current_user(
             options={"require": ["exp", "sub", "email"]},
         )
     except jwt.PyJWKClientConnectionError as exc:
-        # 鍵を取れないのはトークンの問題ではないので 401 にしない。
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="認証サーバーに接続できません",

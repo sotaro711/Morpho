@@ -26,7 +26,6 @@ dev = [
     "pyright>=1.1.390",
     "pytest>=9.1.1",
 ]
-# S4 は同梱した修正版ソース (vendor/S4) からビルドする。
 solver = [
     "s4",
 ]
@@ -47,12 +46,12 @@ src = ["src"]
 
 [tool.ruff.lint]
 select = [
-    "E", "W",   # pycodestyle
-    "F",        # pyflakes
-    "I",        # isort
-    "UP",       # pyupgrade
-    "B",        # bugbear
-    "TID",      # tidy-imports（層違反の検出に使う）
+    "E", "W",
+    "F",
+    "I",
+    "UP",
+    "B",
+    "TID",
 ]
 
 [tool.pytest.ini_options]

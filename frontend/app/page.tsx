@@ -25,7 +25,6 @@ import { hasDiffractionModes } from "@/lib/diffraction";
 import { structureLayers, type Medium, type Settings } from "@/lib/stack";
 import { isStepped, structureColumns, toSteppedSimulationRequest } from "@/lib/stepped";
 
-// Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const StructureView = dynamic(() => import("@/components/StructureView"), {
   ssr: false,
 });
@@ -37,12 +36,8 @@ const AngleSpectraChart = dynamic(
   { ssr: false },
 );
 
-// 見た目の色・角度別スペクトル用: 0/30/60°、波長は 10nm 間隔(色変換できる間隔)。
 const COLOR_THETAS = [0, 30, 60];
 const COLOR_SWEEP_WL = { wlMin: 380, wlMax: 780, wlPoints: 41 };
-// 角度スイープチャート用: -80〜80° を 10° 刻み、代表 5 波長。
-// 波長は研究スライド(COMSOL 参照結果)と同じ値。550nm 付近はストップバンドの
-// 急峻な端で 10nm ずれると曲線の形が変わるため、等間隔グリッドではなく明示する。
 const ANGLE_THETAS = Array.from({ length: 17 }, (_, i) => -80 + i * 10);
 const ANGLE_SWEEP_WL = { wavelengthsNm: [400, 470, 540, 600, 700] };
 
@@ -69,11 +64,7 @@ export default function Home() {
     setSettings((s) => ({ ...s, ...p }));
 
   const runSimulation = async () => {
-    // 段差の有無は選ぶものではなく、設定の結果として決まる。
     const base = toSteppedSimulationRequest(settings, films, substrate, stepped);
-    // 直列に実行する: バックエンドは 1 リクエストずつ解くので並列でも速くならず、
-    // 待ち行列に入った方がプロキシタイムアウトに達するリスクだけが増えるため。
-    // 2 本目の run が始まるまで前回の角度チャートが残らないよう、先に消しておく。
     anglesSweep.clear();
     setSaveError(null);
     const colors = await colorsSweep.run({
@@ -89,7 +80,6 @@ export default function Home() {
       includeColors: false,
     });
     if (!colors || !angles) return;
-    // 計算はすべて保存して履歴にする。保存に失敗しても計算結果の表示は続ける。
     try {
       await saveResult({ request: base, colors, angles });
     } catch (e) {
@@ -100,7 +90,6 @@ export default function Home() {
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-6">
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(420px,460px)_1fr]">
-        {/* 左：入力 */}
         <div className="grid min-w-0 gap-6">
           <Card>
             <CardHeader>
@@ -128,7 +117,6 @@ export default function Home() {
               <CardTitle className="text-base">ペアをまとめて挿入</CardTitle>
             </CardHeader>
             <CardContent>
-              {/* 多層膜スタックの一番上（入射側寄り）にまとめて積む */}
               <PairInsertForm
                 onInsert={(block) => setFilms((prev) => [...block, ...prev])}
               />
@@ -144,7 +132,6 @@ export default function Home() {
             </CardContent>
           </Card>
 
-          {/* 層を増やして左カラムが長くなってもスクロールせずに押せるよう、画面下端に追従させる */}
           <div className="sticky bottom-0 z-10 grid gap-3 border-t bg-background/85 py-3 backdrop-blur">
             <Button onClick={runSimulation} disabled={loading} className="w-full">
               {loading ? "計算中…" : "計算する"}
@@ -165,7 +152,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 右：構造の断面図（常時）とスペクトル（計算後）。スクロール追従させる。 */}
         <div className="grid min-w-0 gap-6 lg:sticky lg:top-6 lg:self-start">
           <Card>
             <CardHeader>

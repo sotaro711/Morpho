@@ -1,5 +1,3 @@
-"""シミュレーション API のルーター。"""
-
 import logging
 from typing import Annotated
 
@@ -40,7 +38,6 @@ Repositories = Annotated[MaterialRepositoryFactory, Depends(get_material_reposit
 def _load_materials(
     request: SimulationRequest, user: AuthenticatedUser, open_repository: MaterialRepositoryFactory
 ) -> dict[str, DispersiveMaterial]:
-    """リクエストが参照する登録済み材料を、ログイン中のユーザーのものから読む。"""
     ids = request.material_ids()
     if not ids:
         return {}
@@ -52,8 +49,6 @@ def _load_materials(
 def _to_condition(
     request: SimulationRequest, user: AuthenticatedUser, open_repository: MaterialRepositoryFactory
 ) -> SimulationCondition:
-    # Pydantic で拾えない不変条件（波長範囲の逆転、見つからない材料など）は domain / DTO が
-    # ValueError を出す。
     try:
         return request.to_condition(_load_materials(request, user, open_repository))
     except ValueError as exc:
@@ -61,7 +56,6 @@ def _to_condition(
 
 
 def _describe(condition: SimulationCondition, user: AuthenticatedUser) -> str:
-    """計算時間を左右する条件の要約（ログ用）。基底数と面内パターンの有無が主因。"""
     wls = condition.wavelengths_nm()
     structure = "planar"
     if condition.is_patterned:

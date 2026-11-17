@@ -32,8 +32,8 @@ function useSimulator3DState() {
   const [pillarSubstrate, setPillarSubstrate] =
     useState<Medium>(DEFAULT_SUBSTRATE);
   const [mode, setMode] = useState<DiffractionMode>(DEFAULT_DIFFRACTION_MODE);
-  const colorsSweep = useSweep(); // 色チップ + 角度別スペクトル
-  const anglesSweep = useSweep(); // 角度スイープチャート
+  const colorsSweep = useSweep();
+  const anglesSweep = useSweep();
 
   return {
     template,
@@ -61,7 +61,6 @@ const Simulator3DContext = createContext<ReturnType<
   typeof useSimulator3DState
 > | null>(null);
 
-/** 3 次元構造の計算画面の入力と結果。SimulatorProvider と同じく、ページを離れても残す。 */
 export function Simulator3DProvider({
   children,
 }: {

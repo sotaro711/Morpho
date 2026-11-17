@@ -1,5 +1,3 @@
-"""シミュレーション実行ユースケース。"""
-
 from s4web.domain.entities.simulation import (
     DiffractionMode,
     SimulationCondition,
@@ -10,8 +8,6 @@ from s4web.domain.ports.solver_port import SolverPort
 
 
 class RunSimulationUseCase:
-    """ソルバーで R/T を計算し、反射スペクトルから色を求める。"""
-
     def __init__(self, solver: SolverPort, colorimetry: ColorimetryPort) -> None:
         self._solver = solver
         self._colorimetry = colorimetry

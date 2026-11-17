@@ -4,11 +4,6 @@ import Plot from "@/components/Plot";
 import type { DispersionPoint } from "@/lib/api/client";
 import { clipToRange, WL_MAX, WL_MIN } from "@/lib/dispersion";
 
-/**
- * 材料の n, k を、計算で使う波長の範囲について描く。n は左軸、k は右軸。
- * 範囲内で k がすべて 0 の材料は n だけを描く。
- * カーソルを乗せるとその波長の n と k の値が出る（登録内容の確認用）。
- */
 export default function MaterialChart({ points: registered }: { points: DispersionPoint[] }) {
   const points = clipToRange(registered);
   const x = points.map((p) => p.wavelengthNm);

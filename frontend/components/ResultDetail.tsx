@@ -13,7 +13,6 @@ import type {
 } from "@/lib/api/client";
 import { DEFAULT_DIFFRACTION_MODE, hasDiffractionModes, type DiffractionMode } from "@/lib/diffraction";
 
-// Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const AngleSweepChart = dynamic(() => import("@/components/AngleSweepChart"), {
   ssr: false,
 });
@@ -22,7 +21,6 @@ const AngleSpectraChart = dynamic(
   { ssr: false },
 );
 
-/** 履歴の 1 件の計算条件（読み取り専用）と結果。 */
 export function ResultDetail({ result }: { result: Detail }) {
   const [mode, setMode] = useState<DiffractionMode>(DEFAULT_DIFFRACTION_MODE);
 
@@ -63,7 +61,6 @@ function Section({
 
 type Region = LayerDTO["regions"][number];
 
-/** 領域の位置の説明。shape の無い保存済みデータは x 方向の区間（1D 格子）。 */
 function describeRegion(r: Region): string {
   if (r.shape === "rect") {
     return `(${r.cxNm}, ${r.cyNm}) ${r.widthNm}×${r.heightNm} nm`;
@@ -74,13 +71,8 @@ function describeRegion(r: Region): string {
   return `x ${r.xNm}–${r.xNm + r.widthNm} nm`;
 }
 
-/**
- * 計算条件。層の先頭は入射側の空気、末尾は基板。
- * 段差ありの構造は保存形式が z 方向のスライスなので、スライスごとに領域を並べる。
- */
 function Conditions({ request }: { request: SimulationRequest }) {
   const { materials } = useMaterials();
-  // 材料は名前を持たないので、今の材料一覧から引く。削除・改名されていれば分からない。
   const optics = ({
     n,
     k,

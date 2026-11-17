@@ -6,10 +6,6 @@ import { Button } from "@/components/ui/button";
 import { authErrorMessage } from "@/lib/auth-errors";
 import { supabase } from "@/lib/supabase";
 
-/**
- * Google でログインする。初回はそのまま登録になるので、
- * ログインと新規登録のどちらの画面でも同じ文言で出す。
- */
 export function GoogleButton() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -39,7 +35,6 @@ export function GoogleButton() {
   );
 }
 
-/** Google の「G」ロゴ（ブランドガイドラインの 4 色版）。 */
 function GoogleLogo() {
   return (
     <svg viewBox="0 0 18 18" aria-hidden="true">

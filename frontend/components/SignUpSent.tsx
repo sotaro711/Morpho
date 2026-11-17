@@ -8,7 +8,6 @@ import { supabase } from "@/lib/supabase";
 
 type Props = { email: string; onBack: () => void };
 
-/** 新規登録の送信後に出す、確認メールの案内と再送。 */
 export function SignUpSent({ email, onBack }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);

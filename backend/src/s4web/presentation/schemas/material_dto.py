@@ -1,5 +1,3 @@
-"""材料 API の入出力 DTO。"""
-
 from __future__ import annotations
 
 from datetime import datetime
@@ -9,7 +7,6 @@ from pydantic.alias_generators import to_camel
 
 from s4web.domain.entities.saved_material import MAX_MATERIAL_NAME_LENGTH, SavedMaterial
 
-# アップロードされるファイルの上限（文字数）。601 点のファイルで約 21 KB なので十分な余裕がある。
 MAX_FILE_CHARS = 1_048_576
 
 

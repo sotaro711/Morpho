@@ -1,4 +1,3 @@
-// plotly.js-dist-min と react-plotly.js/factory の型シム。
 declare module "plotly.js-dist-min";
 
 declare module "react-plotly.js/factory" {

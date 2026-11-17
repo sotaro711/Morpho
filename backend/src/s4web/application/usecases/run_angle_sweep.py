@@ -1,5 +1,3 @@
-"""入射角スイープユースケース。"""
-
 import logging
 import time
 from dataclasses import replace
@@ -16,13 +14,6 @@ _logger = logging.getLogger(__name__)
 
 
 class RunAngleSweepUseCase:
-    """入射角を掃引し、角度ごとの R/T スペクトル(と任意で反射色)を計算する。
-
-    研究スライドの「見た目の色(0/30/60°)」「角度スイープ」「角度別スペクトル」は
-    すべてこの結果から描ける。include_colors=False は、波長間隔が色変換に
-    適さない粗い掃引(角度スイープチャート用)のためにある。
-    """
-
     def __init__(self, solver: SolverPort, colorimetry: ColorimetryPort) -> None:
         self._solver = solver
         self._colorimetry = colorimetry
@@ -36,7 +27,6 @@ class RunAngleSweepUseCase:
         entries: list[AngleSweepEntry] = []
         started = time.perf_counter()
         for i, theta in enumerate(theta_degs, start=1):
-            # frozen な条件は replace で角度だけ差し替える(検証も再実行される)。
             cond = replace(condition, theta_deg=theta)
             angle_started = time.perf_counter()
             spectrum = self._solver.solve(cond)

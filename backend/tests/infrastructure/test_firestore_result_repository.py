@@ -1,9 +1,3 @@
-"""FirestoreResultRepository。サイズ計算はそのまま、読み書きはエミュレータがあるときだけ試す。
-
-エミュレータ: gcloud emulators firestore start --host-port=localhost:8080
-             export FIRESTORE_EMULATOR_HOST=localhost:8080
-"""
-
 import logging
 import os
 from uuid import uuid4
@@ -108,8 +102,6 @@ class _FakeRef:
 
 
 class _FakeDb:
-    """エミュレータなしで add() のログを確かめるための最小限の Client。"""
-
     def __init__(self) -> None:
         self.ref = _FakeRef()
 
@@ -123,7 +115,7 @@ class _FakeDb:
 def test_add_logs_size_and_duration(caplog: pytest.LogCaptureFixture) -> None:
     db = _FakeDb()
     with caplog.at_level(logging.INFO):
-        saved = FirestoreResultRepository(db).add("user-1", _draft())  # type: ignore[arg-type]
+        saved = FirestoreResultRepository(db).add("user-1", _draft())
     assert saved.id == "r1" and db.ref.data is not None
     messages = [r.getMessage() for r in caplog.records]
     assert len(messages) == 1
@@ -134,7 +126,7 @@ def test_add_logs_size_and_duration(caplog: pytest.LogCaptureFixture) -> None:
 def test_too_large_result_is_logged_as_warning(caplog: pytest.LogCaptureFixture) -> None:
     db = _FakeDb()
     with caplog.at_level(logging.WARNING), pytest.raises(ResultTooLargeError):
-        FirestoreResultRepository(db).add("user-1", _draft(points=200_000))  # type: ignore[arg-type]
+        FirestoreResultRepository(db).add("user-1", _draft(points=200_000))
     assert db.ref.data is None
     assert caplog.records[0].getMessage().startswith("result too large: ")
     assert caplog.records[0].getMessage().endswith("owner=user-1")

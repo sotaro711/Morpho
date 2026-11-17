@@ -1,12 +1,3 @@
-"""光学定数のテキストファイルを読んで DispersiveMaterial にする。
-
-想定する形式は 1 行 1 波長の「波長(nm) n k」。エリプソメータの解析ソフト
-（J.A. Woollam CompleteEASE など）の書き出しをそのまま読めるようにする:
-見出し行、タブ区切り、行末の余分なタブ、CRLF、末尾の空行。
-
-エラー文言は登録画面にそのまま出すので日本語にしている。
-"""
-
 import re
 from math import isfinite
 
@@ -17,17 +8,13 @@ from s4web.domain.entities.material import (
 )
 
 _SEPARATOR = re.compile(r"[\s,;]+")
-# 見出しに nm 以外の単位が書かれていれば、数値の大きさを見る前に拒否する。
 _NON_NM_UNIT = re.compile(r"\b(eV|µm|um|micron|microns|cm-1|Å|angstrom)\b", re.IGNORECASE)
-# 可視域の nm なら数百になる。最大波長がこれ未満なら μm や eV のデータと判断する。
 _MIN_PLAUSIBLE_NM = 100.0
 
 
 def parse_optical_constants(text: str) -> DispersiveMaterial:
-    """ファイルの内容を材料にする。読めない内容は理由を書いた ValueError。"""
     points: list[DispersionPoint] = []
     for line_no, line in enumerate(text.splitlines(), start=1):
-        # 行頭・行末の区切り文字も落とす（行末の余分なタブやカンマで空の列ができないように）。
         stripped = line.strip(" \t\r,;")
         if not stripped:
             continue
@@ -39,7 +26,7 @@ def parse_optical_constants(text: str) -> DispersiveMaterial:
                 raise ValueError(
                     "波長の単位が nm ではないようです。nm に変換したファイルを使ってください"
                 ) from None
-            continue  # 見出しなど、数値でない行は読み飛ばす
+            continue
         # 小数点がカンマの「1,52」は 2 列に割れて n=1, k=52 と誤読されるので、列が多い行は拒否する。
         if len(fields) > 3:
             raise ValueError(f"{line_no} 行目の列が多すぎます（波長 nm、n、k の 3 列まで）")

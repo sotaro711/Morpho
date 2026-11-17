@@ -44,7 +44,6 @@ def test_dispersive_material_interpolates_n_and_k_linearly() -> None:
 
 
 def test_dispersive_material_clamps_outside_the_range() -> None:
-    # 範囲外は計算条件で拒否する予定。Rayleigh 点回避の微小シフトでは端の値を使う。
     m = _material((400, 2.5, 0.2), (500, 2.3, 0.0))
     assert m.refractive_index_at(399.9) == complex(2.5, 0.2)
     assert m.refractive_index_at(500.1) == complex(2.3, 0.0)
@@ -84,6 +83,5 @@ def test_dispersion_point_rejects_unphysical_values(n: float, k: float) -> None:
 def test_dispersion_point_rejects_nan_and_infinity(
     wavelength_nm: float, n: float, k: float
 ) -> None:
-    # nan は大小比較がすべて False になり、正・非負の検証をすり抜けるので別に弾く。
     with pytest.raises(ValueError, match="finite"):
         DispersionPoint(wavelength_nm, n, k)

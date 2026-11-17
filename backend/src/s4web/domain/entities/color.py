@@ -1,12 +1,8 @@
-"""色エンティティ（値オブジェクト）。"""
-
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class ColorResult:
-    """sRGB 色（各成分 0-255）。"""
-
     r: int
     g: int
     b: int

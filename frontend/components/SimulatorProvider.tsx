@@ -19,10 +19,9 @@ function useSimulatorState() {
   const [substrate, setSubstrate] = useState<Medium>(DEFAULT_SUBSTRATE);
   const [films, setFilms] = useState<EditableLayer[]>(DEFAULT_FILMS);
   const [stepped, setStepped] = useState<SteppedConfig>(DEFAULT_STEPPED);
-  // 表示する回折次数の見方（0次のみ / 0次以外 / 全次数）。表示だけの切替で再計算はしない。
   const [mode, setMode] = useState<DiffractionMode>(DEFAULT_DIFFRACTION_MODE);
-  const colorsSweep = useSweep(); // 色チップ + 角度別スペクトル
-  const anglesSweep = useSweep(); // 角度スイープチャート
+  const colorsSweep = useSweep();
+  const anglesSweep = useSweep();
 
   return {
     settings,
@@ -42,10 +41,6 @@ function useSimulatorState() {
 
 const SimulatorContext = createContext<ReturnType<typeof useSimulatorState> | null>(null);
 
-/**
- * 計算画面の入力と結果。ページより外（レイアウト）に置き、材料ページへ移って戻っても
- * 編集中の層や計算結果が消えないようにする。リロードすると初期値に戻る。
- */
 export function SimulatorProvider({ children }: { children: React.ReactNode }) {
   return (
     <SimulatorContext.Provider value={useSimulatorState()}>{children}</SimulatorContext.Provider>

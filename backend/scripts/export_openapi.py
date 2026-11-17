@@ -1,11 +1,3 @@
-"""FastAPI アプリの OpenAPI スキーマをリポジトリ直下の openapi.json に出力する。
-
-フロントの型生成（openapi-typescript）の入力になる「API 契約の源泉」。
-S4 を import しないため S4 未導入環境でも実行可能。
-
-実行: uv run python scripts/export_openapi.py
-"""
-
 import json
 from pathlib import Path
 

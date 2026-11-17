@@ -1,9 +1,3 @@
-"""API の入出力 DTO（Pydantic）と domain エンティティへの変換。
-
-JSON は camelCase（TypeScript フロントの慣習）、Python 側は snake_case。
-alias_generator でこのギャップを吸収する。
-"""
-
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -32,14 +26,12 @@ class _CamelModel(BaseModel):
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
-# 層・領域が参照できる材料。キーは登録した材料の id。
 Materials = Mapping[str, DispersiveMaterial]
 
 
 def _resolve_material(
     n: float | None, k: float, material_id: UUID | None, materials: Materials
 ) -> OpticalMaterial:
-    """material_id があれば登録した材料（分散）を優先し、無ければ n, k の定数材料を返す。"""
     if material_id is not None:
         material = materials.get(str(material_id))
         if material is None:
@@ -51,8 +43,6 @@ def _resolve_material(
 
 
 class _RegionBase(_CamelModel):
-    """領域の材料。material_id を指定すると登録した材料（波長分散）を使い、n, k は不要になる。"""
-
     n: float | None = None
     k: float = 0.0
     material_id: UUID | None = None
@@ -111,7 +101,6 @@ class CircleRegionDTO(_RegionBase):
         )
 
 
-# shape で判別する。省略時は従来どおり x 方向の区間（RegionDTO）。
 AnyRegionDTO = RegionDTO | RectRegionDTO | CircleRegionDTO
 
 
@@ -139,21 +128,15 @@ class SimulationRequest(_CamelModel):
     wl_max: float = Field(gt=0)
     wl_points: int = Field(ge=1)
     theta_deg: float = 0.0
-    # 入射面の方位角（0 = xz 面、90 = yz 面）。x, y の 2 方向に周期を持つ構造でのみ指定する。
     phi_deg: float = 0.0
     pol: Polarization = Polarization.S
     layers: list[LayerDTO] = Field(min_length=2)
-    # 面内パターンを使う場合のみ指定する（平面多層膜では省略 = 従来どおり）。
-    # period_y_nm を与えると x, y の 2 方向に周期を持つ構造（円・矩形の領域が使える）。
     period_nm: float | None = None
     period_y_nm: float | None = None
     num_basis: int = Field(ge=1, le=NUM_BASIS_LIMIT, default=1)
-    # 等間隔で表せない波長サンプル用の明示リスト（昇順）。指定時は
-    # wlMin / wlMax / wlPoints を使わず、このリストの波長だけを計算する。
     wavelengths_nm: list[float] | None = Field(default=None, min_length=1, max_length=2001)
 
     def material_ids(self) -> set[str]:
-        """層・領域が参照している材料の id。"""
         return {
             str(material_id)
             for layer in self.layers
@@ -162,7 +145,6 @@ class SimulationRequest(_CamelModel):
         }
 
     def to_condition(self, materials: Materials) -> SimulationCondition:
-        """条件に変換する。materials には material_ids() の材料がそろっている必要がある。"""
         return SimulationCondition(
             wl_min_nm=self.wl_min,
             wl_max_nm=self.wl_max,
@@ -307,7 +289,6 @@ class SweepRequest(SimulationRequest):
         return self
 
     def _wavelength_intervals(self) -> list[float]:
-        """実際に計算される波長列の隣接間隔（2 点未満なら空）。"""
         if self.wavelengths_nm is not None:
             wls = self.wavelengths_nm
             return [nxt - prev for prev, nxt in zip(wls, wls[1:], strict=False)]
@@ -319,7 +300,6 @@ class SweepRequest(SimulationRequest):
 class SweepEntryDTO(BaseModel):
     """1 入射角分の結果。キーは SimulationResponse に合わせて R / T。"""
 
-    # 保存した結果を読み込み直せるよう、入力も出力と同じ thetaDeg で受け付ける。
     theta_deg: float = Field(alias="thetaDeg")
     R: list[float]
     T: list[float]
@@ -356,7 +336,6 @@ class SweepResponse(BaseModel):
 
 
 class SimulationResponse(BaseModel):
-    # フロントのグラフがそのまま使えるよう、キーは wavelengths / R / T。
     wavelengths: list[float]
     R: list[float]
     T: list[float]

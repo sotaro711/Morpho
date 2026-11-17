@@ -1,5 +1,3 @@
-# Cloud Run サービス morpho の設定。main へのマージで cloudbuild.yaml が
-# image を今回のコミットのイメージに置き換えてから `gcloud run services replace` で反映する。
 # コンソールで変えた設定は次のデプロイで上書きされるので、変更はこのファイルで行う。
 apiVersion: serving.knative.dev/v1
 kind: Service
@@ -7,10 +5,9 @@ metadata:
   name: morpho
   annotations:
     run.googleapis.com/ingress: all
-    # アプリ側で Supabase の JWT を検証するので、Cloud Run の IAM 認証は使わない
     run.googleapis.com/invoker-iam-disabled: "true"
     # サービス単位の上限は全リビジョンの合計にかかるので、リビジョン単位の maxScale（20）より
-    # こちらが実効上限になる。値は移行時点の本番設定をそのまま写している。
+    # こちらが実効上限になる。
     run.googleapis.com/maxScale: "2"
 spec:
   template:
@@ -23,9 +20,6 @@ spec:
         run.googleapis.com/startup-cpu-boost: "true"
     spec:
       containerConcurrency: 80
-      # 3 次元構造の計算（角柱の段差、基底 49）は 1 リクエストで数百秒かかるので、
-      # 既定の 300 秒では打ち切られる（2026-10-27 に本番で 504）。非同期ジョブ化までの間は
-      # 長めに取る
       timeoutSeconds: 1800
       serviceAccountName: 393004586204-compute@developer.gserviceaccount.com
       containers:
@@ -49,20 +43,14 @@ spec:
                   key: latest
           resources:
             limits:
-              # 1 vCPU では 3 次元構造の計算が手元の数倍かかりタイムアウトしたので 2 vCPU にする
               cpu: 2000m
               memory: 1Gi
-          # 起動時の確認（S4 など）は _lifespan で行い、失敗すればプロセスが終了するので、
-          # ポートが開いたかを見る TCP の確認で足りる
           startupProbe:
             tcpSocket:
               port: 8080
             periodSeconds: 240
             timeoutSeconds: 240
             failureThreshold: 1
-          # 起動後に応答しなくなったら再起動する。30 秒ごとに確かめ、3 回続けて失敗したら
-          # （約 90 秒応答がなければ）固まったとみなす。/api/health は async で外部に依存しないので、
-          # 計算でスレッドプールが埋まっていても、DB が落ちていても応答する。
           livenessProbe:
             httpGet:
               path: /api/health

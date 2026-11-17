@@ -1,15 +1,3 @@
-"""ログの出力先と形式、リクエスト単位の開始・終了ログ。
-
-Cloud Run は stdout / stderr の各行を Cloud Logging に取り込む。1 行を JSON にして
-severity と trace を付けると、重要度で絞り込めるほか、計算中に出た進捗ログを
-「このリクエストのもの」として辿れる（リクエストログと同じ trace になる）。
-ローカルでは読みやすいテキスト形式にする。
-
-uvicorn のアクセスログはレスポンスを返した時点でしか出ないので、受け付けた時点の
-ログはここのミドルウェアで出す。数百秒かかる計算で「止まっているのか、動いているのか」
-を区別するため。
-"""
-
 import json
 import logging
 import os
@@ -31,13 +19,10 @@ _logger = logging.getLogger(__name__)
 # contextvars は anyio がスレッドに複製するので、計算中のログからも読める。
 _trace: ContextVar[str | None] = ContextVar("trace", default=None)
 
-# liveness probe が 30 秒ごとに叩くので、開始・終了ログは出さない。
 _QUIET_PATHS = frozenset({"/api/health"})
 
 
 class _CloudLoggingFormatter(logging.Formatter):
-    """Cloud Logging の構造化ログ（1 行 JSON）。"""
-
     def format(self, record: logging.LogRecord) -> str:
         message = record.getMessage()
         if record.exc_info:
@@ -54,10 +39,6 @@ class _CloudLoggingFormatter(logging.Formatter):
 
 
 def configure_logging() -> None:
-    """root ロガーの出力先と形式、レベル（LOG_LEVEL、既定 INFO）を設定する。
-
-    uvicorn 自身のロガー（アクセスログなど）は propagate しないので影響しない。
-    """
     handler = logging.StreamHandler(sys.stderr)
     if os.environ.get("K_SERVICE"):
         # Cloud Run が設定する環境変数。
@@ -82,9 +63,7 @@ def _trace_from_headers(scope: Scope) -> str | None:
 
 
 class RequestLogMiddleware:
-    """/api 配下のリクエストの開始と終了（status と所要秒）をログに出す純 ASGI ミドルウェア。
-
-    BaseHTTPMiddleware ではなく生の ASGI にするのは、/api/health の応答を
+    """BaseHTTPMiddleware ではなく生の ASGI にするのは、/api/health の応答を
     スレッドプールの空きに依存させないため（test_health を参照）。
     """
 

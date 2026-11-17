@@ -1,9 +1,3 @@
-"""ヘルスチェックのルーター。Cloud Run から認証なしで呼ばれる。
-
-liveness probe の確認先なので、軽く、外部サービス（DB・Firestore）に依存させない。
-外部の一時的な障害で全インスタンスが再起動され続けるのを避けるため。
-"""
-
 from fastapi import APIRouter
 
 router = APIRouter()

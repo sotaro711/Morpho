@@ -1,6 +1,5 @@
 import { Label } from "@/components/ui/label";
 
-/** ラベル付きのフォーム入力枠。 */
 export function Field({
   label,
   children,
