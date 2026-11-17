@@ -3,7 +3,7 @@
 import { createContext, useContext, useState } from "react";
 
 import type { EditableLayer } from "@/lib/api/client";
-import type { DiffractionMode } from "@/lib/diffraction";
+import { DEFAULT_DIFFRACTION_MODE, type DiffractionMode } from "@/lib/diffraction";
 import { useSweep } from "@/lib/hooks/use-sweep";
 import {
   DEFAULT_PILLAR,
@@ -31,7 +31,7 @@ function useSimulator3DState() {
     useState<EditableLayer[]>(DEFAULT_FILMS);
   const [pillarSubstrate, setPillarSubstrate] =
     useState<Medium>(DEFAULT_SUBSTRATE);
-  const [mode, setMode] = useState<DiffractionMode>("zeroth");
+  const [mode, setMode] = useState<DiffractionMode>(DEFAULT_DIFFRACTION_MODE);
   const colorsSweep = useSweep(); // 色チップ + 角度別スペクトル
   const anglesSweep = useSweep(); // 角度スイープチャート
 

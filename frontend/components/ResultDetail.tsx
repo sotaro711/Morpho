@@ -11,7 +11,7 @@ import type {
   ResultDetail as Detail,
   SimulationRequest,
 } from "@/lib/api/client";
-import { hasDiffractionModes, type DiffractionMode } from "@/lib/diffraction";
+import { DEFAULT_DIFFRACTION_MODE, hasDiffractionModes, type DiffractionMode } from "@/lib/diffraction";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
 const AngleSweepChart = dynamic(() => import("@/components/AngleSweepChart"), {
@@ -24,7 +24,7 @@ const AngleSpectraChart = dynamic(
 
 /** 履歴の 1 件の計算条件（読み取り専用）と結果。 */
 export function ResultDetail({ result }: { result: Detail }) {
-  const [mode, setMode] = useState<DiffractionMode>("zeroth");
+  const [mode, setMode] = useState<DiffractionMode>(DEFAULT_DIFFRACTION_MODE);
 
   return (
     <div className="grid gap-4">
