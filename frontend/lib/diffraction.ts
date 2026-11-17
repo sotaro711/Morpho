@@ -13,6 +13,9 @@ import type { ColorDTO, SweepEntry, SweepResponse } from "@/lib/api/client";
  */
 export type DiffractionMode = "zeroth" | "nonZeroth" | "total";
 
+/** 計算結果を最初に開いたときの見方。目に入る色に近い全次数にしておく。 */
+export const DEFAULT_DIFFRACTION_MODE: DiffractionMode = "total";
+
 export const DIFFRACTION_MODES: {
   value: DiffractionMode;
   label: string;

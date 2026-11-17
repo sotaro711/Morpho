@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getMaterial, type MaterialDetail, type MaterialSummary } from "@/lib/api/client";
+import { hasAbsorption } from "@/lib/dispersion";
 import { cn } from "@/lib/utils";
 
 // Plotly はブラウザ専用なので SSR を無効化して読み込む。
@@ -173,7 +174,8 @@ function MaterialRow({
   };
 
   const range = opened
-    ? `${opened.points[0].wavelengthNm}–${opened.points[opened.points.length - 1].wavelengthNm} nm、${opened.points.length} 点`
+    ? `${opened.points[0].wavelengthNm}–${opened.points[opened.points.length - 1].wavelengthNm} nm、${opened.points.length} 点` +
+      (hasAbsorption(opened.points) ? "" : "、k = 0")
     : null;
 
   return (
