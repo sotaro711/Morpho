@@ -11,6 +11,8 @@ ENV NEXT_OUTPUT=export
 # どちらも公開前提の値。未指定だとビルドが明示的なエラーで止まる。
 ARG NEXT_PUBLIC_SUPABASE_URL
 ARG NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+# 計算 API の送り先（morpho-compute の URL）。未指定なら画面と同じオリジンに送る
+ARG NEXT_PUBLIC_COMPUTE_URL
 # Turbopack はコンテナ内で Google Fonts の取得に失敗するため webpack でビルドする
 RUN npx next build
 
