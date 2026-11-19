@@ -1,0 +1,82 @@
+# Cloud Run サービス morpho-compute の設定。計算 API（/api/simulate*）だけを受け持つ。
+# 画面と軽い API は service.yaml の morpho が受け持つ。
+#
+# S4 は計算中に GIL を手放さないので、1 インスタンスで計算を並べるとイベントループが止まり、
+# liveness probe に応答できずインスタンスごと停止される（#67）。そのため 1 インスタンスに
+# 1 リクエストだけを割り当て、同時に計算する人数ぶんインスタンスを増やす。
+# 待機中のインスタンスには課金されない（minScale 0）ので、maxScale は余裕を持たせている。
+#
+# 中身は morpho と同じイメージ。main へのマージで cloudbuild.yaml が両方を反映する。
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: morpho-compute
+  annotations:
+    run.googleapis.com/ingress: all
+    # アプリ側で Supabase の JWT を検証するので、Cloud Run の IAM 認証は使わない
+    run.googleapis.com/invoker-iam-disabled: "true"
+    # サービス単位の上限は全リビジョンの合計にかかる。リビジョン単位と同じ値にそろえる
+    run.googleapis.com/maxScale: "20"
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: "20"
+        autoscaling.knative.dev/minScale: "0"
+        run.googleapis.com/cpu-throttling: "true"
+        run.googleapis.com/sessionAffinity: "false"
+        run.googleapis.com/startup-cpu-boost: "true"
+    spec:
+      containerConcurrency: 1
+      # 3 次元構造の計算（角柱の段差、基底 49）は 1 リクエストで数百秒かかる。
+      # 非同期ジョブ化までの間は長めに取る
+      timeoutSeconds: 1800
+      serviceAccountName: 393004586204-compute@developer.gserviceaccount.com
+      containers:
+        - name: placeholder-1
+          image: IMAGE
+          ports:
+            - name: http1
+              containerPort: 8080
+          env:
+            - name: GOOGLE_CLOUD_PROJECT
+              value: morpho-sim
+            # 画面（morpho）のオリジン。Cloud Run は 2 種類の URL を発行するので両方許可する
+            - name: S4WEB_CORS_ORIGINS
+              value: https://morpho-ed5lcnccqa-an.a.run.app,https://morpho-393004586204.asia-northeast1.run.app
+            # 画面は配信しない（空にすると app.py が StaticFiles を組み込まない）
+            - name: S4WEB_STATIC_DIR
+              value: ""
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: DATABASE_URL
+                  key: latest
+            - name: SUPABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: SUPABASE_URL
+                  key: latest
+          resources:
+            limits:
+              # 1 vCPU では 3 次元構造の計算が手元の数倍かかりタイムアウトしたので 2 vCPU にする
+              cpu: 2000m
+              memory: 1Gi
+          # 起動時の確認（S4 など）は _lifespan で行い、失敗すればプロセスが終了するので、
+          # ポートが開いたかを見る TCP の確認で足りる
+          startupProbe:
+            tcpSocket:
+              port: 8080
+            periodSeconds: 240
+            timeoutSeconds: 240
+            failureThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+  traffic:
+    - latestRevision: true
+      percent: 100
