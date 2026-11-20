@@ -44,10 +44,10 @@ async def _preflight(origin: str) -> dict[str, str]:
     return headers
 
 
-def test_allows_localhost_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_allows_no_origin_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("S4WEB_CORS_ORIGINS", raising=False)
     headers = anyio.run(_preflight, "http://localhost:3000")
-    assert headers.get("access-control-allow-origin") == "http://localhost:3000"
+    assert "access-control-allow-origin" not in headers
 
 
 def test_allows_configured_origins(monkeypatch: pytest.MonkeyPatch) -> None:

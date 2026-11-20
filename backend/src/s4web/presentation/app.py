@@ -45,7 +45,7 @@ async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 def _cors_origins() -> list[str]:
-    raw = os.environ.get("S4WEB_CORS_ORIGINS", "http://localhost:3000")
+    raw = os.environ.get("S4WEB_CORS_ORIGINS", "")
     return [origin.strip() for origin in raw.split(",") if origin.strip()]
 
 
