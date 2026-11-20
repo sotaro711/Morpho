@@ -18,6 +18,7 @@ steps:
         docker buildx build \
           --build-arg NEXT_PUBLIC_SUPABASE_URL=${_NEXT_PUBLIC_SUPABASE_URL} \
           --build-arg NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${_NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY} \
+          --build-arg NEXT_PUBLIC_COMPUTE_URL=${_NEXT_PUBLIC_COMPUTE_URL} \
           --cache-from type=registry,ref=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:buildcache \
           --cache-to type=registry,ref=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:buildcache,mode=max \
           -t $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA \
@@ -25,8 +26,9 @@ steps:
           --push \
           -f Dockerfile .
 
-  # service.yaml の image: IMAGE を今回のイメージに置き換えて反映する。
-  # services update --image と違い、probe などの設定もこのファイルの内容に揃う。
+  # service.yaml（画面と軽い API）と service-compute.yaml（計算 API）の image: IMAGE を
+  # 今回のイメージに置き換えて反映する。services update --image と違い、probe などの設定も
+  # ファイルの内容に揃う。新しい画面が計算 API を呼ぶ前に反映を終えるよう、compute を先にする。
   - id: Deploy
     name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     entrypoint: bash
@@ -34,9 +36,11 @@ steps:
       - -c
       - |
         set -euo pipefail
-        sed "s|image: IMAGE|image: $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA|" \
-          service.yaml > /workspace/service.deploy.yaml
-        gcloud run services replace /workspace/service.deploy.yaml --region=$_DEPLOY_REGION --quiet
+        image=$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+        for file in service-compute.yaml service.yaml; do
+          sed "s|image: IMAGE|image: $$image|" "$$file" > "/workspace/deploy-$$file"
+          gcloud run services replace "/workspace/deploy-$$file" --region=$_DEPLOY_REGION --quiet
+        done
 
 options:
   logging: CLOUD_LOGGING_ONLY

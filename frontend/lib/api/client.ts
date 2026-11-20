@@ -8,6 +8,13 @@ import type { components, paths } from "./schema";
 export const apiClient = createClient<paths>({ baseUrl: "/" });
 apiClient.use(authMiddleware);
 
+// 計算 API は 1 件ごとにインスタンスを割り当てる別サービス（morpho-compute）に送る。
+// 未設定なら apiClient と同じ送り先になる（開発時など）。
+const computeClient = createClient<paths>({
+  baseUrl: process.env.NEXT_PUBLIC_COMPUTE_URL || "/",
+});
+computeClient.use(authMiddleware);
+
 // 生成スキーマから使いやすい別名を切り出す（フロント側はこれを使う）。
 export type SimulationRequest = components["schemas"]["SimulationRequest"];
 export type SimulationResponse = components["schemas"]["SimulationResponse"];
@@ -46,14 +53,14 @@ function toError(error: unknown): Error {
 export async function simulate(
   body: SimulationRequest,
 ): Promise<SimulationResponse> {
-  const { data, error } = await apiClient.POST("/api/simulate", { body });
+  const { data, error } = await computeClient.POST("/api/simulate", { body });
   if (error) throw toError(error);
   return data;
 }
 
 /** 入射角スイープ(角度ごとのスペクトルと任意で色)を実行する。 */
 export async function simulateSweep(body: SweepRequest): Promise<SweepResponse> {
-  const { data, error } = await apiClient.POST("/api/simulate/sweep", { body });
+  const { data, error } = await computeClient.POST("/api/simulate/sweep", { body });
   if (error) throw toError(error);
   return data;
 }

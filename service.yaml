@@ -1,6 +1,8 @@
 # Cloud Run サービス morpho の設定。main へのマージで cloudbuild.yaml が
 # image を今回のコミットのイメージに置き換えてから `gcloud run services replace` で反映する。
 # コンソールで変えた設定は次のデプロイで上書きされるので、変更はこのファイルで行う。
+# 計算 API は service-compute.yaml の morpho-compute が受け持ち、こちらは画面と軽い API を返す。
+# /api/simulate* もこちらに残っているので、NEXT_PUBLIC_COMPUTE_URL を外せば元の構成に戻せる。
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
