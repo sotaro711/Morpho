@@ -41,7 +41,8 @@ spec:
           env:
             - name: GOOGLE_CLOUD_PROJECT
               value: morpho-sim
-            # 画面（morpho）のオリジン。Cloud Run は 2 種類の URL を発行するので両方許可する
+            # 画面（morpho）のオリジン。Cloud Run は 2 種類の URL を発行するので両方許可する。
+            # 画面にカスタムドメインを割り当てたらここにも足す（漏れると計算だけが CORS で失敗する）
             - name: S4WEB_CORS_ORIGINS
               value: https://morpho-ed5lcnccqa-an.a.run.app,https://morpho-393004586204.asia-northeast1.run.app
             # 画面は配信しない（空にすると app.py が StaticFiles を組み込まない）
