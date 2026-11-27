@@ -55,18 +55,24 @@ function assignColors(keys: Iterable<string>): Map<string, string> {
   return colorOf;
 }
 
+// 層名が登録材料の名前と同じなら null（注記を付けない）。
 function formatIndex(
   { name, n, k, materialId }: Optical,
   names: MaterialNames,
-): string {
+): string | null {
   if (materialId) {
     const materialName = names.get(materialId);
-    // 層名が材料名と同じなら繰り返さない。
     if (materialName === undefined) return "削除された材料";
-    return materialName === name ? "登録した材料" : `材料: ${materialName}`;
+    return materialName === name ? null : `材料: ${materialName}`;
   }
   const nText = n ?? "?";
   return k > 0 ? `n=${nText}, k=${k}` : `n=${nText}`;
+}
+
+// 名前に注記を括弧で付ける。注記が無ければ名前だけ返す。
+function labelWith(name: string, notes: (string | null)[]): string {
+  const shown = notes.filter((note): note is string => note !== null);
+  return shown.length > 0 ? `${name} (${shown.join(", ")})` : name;
 }
 
 export default function StructureView({
@@ -148,7 +154,7 @@ function SteppedView({
     {
       x: periodNm / 2,
       y: subH / 2,
-      text: `${substrate.name} (${formatIndex(substrate, names)})`,
+      text: labelWith(substrate.name, [formatIndex(substrate, names)]),
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     },
@@ -246,7 +252,7 @@ export function CrossSectionView({
     {
       x: span / 2,
       y: subH / 2,
-      text: `${substrate.name} (${formatIndex(substrate, names)})`,
+      text: labelWith(substrate.name, [formatIndex(substrate, names)]),
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     },
@@ -442,7 +448,7 @@ export function SolidView({
     Array.from({ length: Math.floor(span / dtick) }, (_, i) => (i + 1) * dtick);
 
   const shown = new Set<string>();
-  const legendName = (o: Optical) => `${o.name} (${formatIndex(o, names)})`;
+  const legendName = (o: Optical) => labelWith(o.name, [formatIndex(o, names)]);
   const mesh = (
     key: string,
     name: string,
@@ -965,7 +971,10 @@ function PlanarView({
     annotations.push({
       x: DISPLAY_WIDTH / 2,
       y: (y0 + y1) / 2,
-      text: `${layer.name} (${layer.thicknessNm > 0 ? `${layer.thicknessNm}nm, ` : ""}${formatIndex(layer, names)})`,
+      text: labelWith(layer.name, [
+        layer.thicknessNm > 0 ? `${layer.thicknessNm}nm` : null,
+        formatIndex(layer, names),
+      ]),
       showarrow: false,
       font: { color: "#ffffff", size: 11 },
     });
